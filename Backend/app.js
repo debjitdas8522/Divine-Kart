@@ -49,18 +49,34 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // CORS Configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-    : ['http://localhost:3000', 'http://localhost:3001'];
+const defaultAllowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:3001',
+];
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? [...new Set([
+        'http://localhost:5173', // always allow Vite dev server
+        ...process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+    ])]
+    : defaultAllowedOrigins;
 
 app.use(cors({
-    origin: function(origin, callback) {
+    origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
-        
-        if (allowedOrigins.includes(origin)) {
+
+        // Normalize origin to lowercase and remove trailing slash for comparison
+        const normalizedOrigin = origin.trim().replace(/\/$/, '').toLowerCase();
+        const isAllowed = allowedOrigins.some(allowed => {
+            const normalizedAllowed = allowed.trim().replace(/\/$/, '').toLowerCase();
+            return normalizedAllowed === normalizedOrigin;
+        });
+
+        if (isAllowed) {
             callback(null, true);
         } else {
+            console.warn(`CORS: Request from origin "${origin}" not allowed. Allowed origins: ${allowedOrigins.join(', ')}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -106,7 +122,7 @@ const limiter = rateLimit({
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // limit each IP to 5 requests per windowMs for auth endpoints
+    max: 20, // limit each IP to 20 requests per windowMs for auth endpoints
     message: 'Too many authentication attempts, please try again later.'
 });
 
@@ -125,11 +141,11 @@ app.use('/api/users', authLimiter, userRouter)
 app.use('/api/cart', authMiddleware, cartRouter);
 
 //PRODUCT ROUTE
-app.use('/uploads',express.static(path.join(__dirname, '/uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
 app.use('/api/products', productRouter)
 app.use('/api/recommendations', recommendationRouter)
-app.use('/api/orders', orderRouter) 
-app.use("/api/address",addressRouter)
+app.use('/api/orders', orderRouter)
+app.use("/api/address", addressRouter)
 
 // Razorpay webhook endpoint (must use raw body for signature verification)
 app.post('/webhooks/razorpay', express.raw({ type: 'application/json' }), handleRazorpayWebhook);
@@ -187,12 +203,12 @@ app.get('/', (req, res) => {
         </body>
       </html>
     `);
-  });
+});
 
 // Centralized error handling middleware
 app.use((error, req, res, next) => {
     console.error('Error:', error);
-    
+
     // Mongoose validation error
     if (error.name === 'ValidationError') {
         const errors = Object.values(error.errors).map(err => err.message);
@@ -202,7 +218,7 @@ app.use((error, req, res, next) => {
             errors
         });
     }
-    
+
     // Mongoose duplicate key error
     if (error.code === 11000) {
         const field = Object.keys(error.keyValue)[0];
@@ -211,7 +227,7 @@ app.use((error, req, res, next) => {
             message: `${field} already exists`
         });
     }
-    
+
     // JSON parsing errors
     if (error.type === 'entity.parse.failed' || error instanceof SyntaxError) {
         return res.status(400).json({
@@ -220,7 +236,7 @@ app.use((error, req, res, next) => {
             error: 'JSON parse error'
         });
     }
-    
+
     // JWT errors
     if (error.name === 'JsonWebTokenError') {
         return res.status(401).json({
@@ -228,14 +244,14 @@ app.use((error, req, res, next) => {
             message: 'Invalid token'
         });
     }
-    
+
     if (error.name === 'TokenExpiredError') {
         return res.status(401).json({
             success: false,
             message: 'Token expired'
         });
     }
-    
+
     // Default error
     res.status(error.status || 500).json({
         success: false,

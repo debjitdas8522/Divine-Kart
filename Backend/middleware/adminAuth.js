@@ -9,7 +9,7 @@ export default async function adminAuthMiddleware(req, res, next) {
         }
 
         // Check if user has admin role
-        if (req.user.role !== 'ADMIN') {
+        if (req.user.role !== 'admin') {
             return res.status(400).json({
                 success: false,
                 message: "Access denied. Admin privileges required."

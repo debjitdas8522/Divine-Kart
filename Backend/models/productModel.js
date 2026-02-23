@@ -18,16 +18,21 @@ const productSchema = new mongoose.Schema({
     OldPrice: {
         type: Number,
         required: [true, "Please enter product old price"],
-        min:0
+        min: 0
     },
     price: {
         type: Number,
         required: [true, "Please enter product price"],
-        min:0
+        min: 0
     },
     imageUrl: {
         type: String,
         required: false,
+    },
+    stock: {
+        type: Number,
+        default: 0,
+        min: 0,
     }
 },
     {

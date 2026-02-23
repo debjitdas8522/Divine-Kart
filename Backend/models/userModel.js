@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: [true, "Please provide name"],    
+        required: [true, "Please provide name"],
     },
     email: {
         type: String,
@@ -59,6 +59,14 @@ const userSchema = new mongoose.Schema({
         default: null
     },
     forgotPasswordExpiry: {
+        type: Date,
+        default: null
+    },
+    loginOtp: {
+        type: String,
+        default: null
+    },
+    loginOtpExpiry: {
         type: Date,
         default: null
     },

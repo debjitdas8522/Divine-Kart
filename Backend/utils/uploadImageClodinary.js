@@ -1,21 +1,22 @@
-import { v2 as cloudinary } from 'cloudinary';
+import ImageKit from 'imagekit';
 
-cloudinary.config({
-    cloud_name : process.env.CLODINARY_CLOUD_NAME,
-    api_key : process.env.CLODINARY_API_KEY,
-    api_secret : process.env.CLODINARY_API_SECRET_KEY
-})
+const imagekit = new ImageKit({
+    publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
+    privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+    urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
+});
 
-const uploadImageClodinary = async(image)=>{
-    const buffer = image?.buffer || Buffer.from(await image.arrayBuffer())
+const uploadImageClodinary = async (image) => {
+    const buffer = image?.buffer || Buffer.from(await image.arrayBuffer());
+    const fileName = image?.originalname || `product_${Date.now()}`;
 
-    const uploadImage = await new Promise((resolve)=>{
-        cloudinary.uploader.upload_stream({ folder : "binkeyit"},(error,uploadResult)=>{
-            return resolve(uploadResult)
-        }).end(buffer)
-    })
+    const uploadResult = await imagekit.upload({
+        file: buffer,
+        fileName: fileName,
+        folder: '/divinekart/products',
+    });
 
-    return uploadImage
-}
+    return uploadResult;
+};
 
-export default uploadImageClodinary
+export default uploadImageClodinary;

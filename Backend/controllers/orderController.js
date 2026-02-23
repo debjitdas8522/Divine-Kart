@@ -28,28 +28,15 @@ export const createOrder = async (req, res, next) => {
             });
         }
 
-        const { customer, paymentMethod, items, notes, shipping = 0 } = req.body;
-        
-        // Validate customer object
-        if (!customer || typeof customer !== 'object') {
-            return res.status(400).json({
-                success: false,
-                message: 'Customer information is required'
-            });
-        }
+        const { items, paymentMethod, shippingAddress, shipping = 0, notes, totalAmount } = req.body;
 
-        if (!customer.name || !customer.email || !customer.phone || !customer.address) {
+        // Normalise payment method
+        const PM_MAP = { cod: 'Cash on Delivery', online: 'Online Payment' };
+        const normalizedPM = PM_MAP[paymentMethod];
+        if (!normalizedPM) {
             return res.status(400).json({
                 success: false,
-                message: 'Customer name, email, phone, and address are required'
-            });
-        }
-
-        // Validate payment method
-        if (!paymentMethod || !['COD', 'Online Payment'].includes(paymentMethod)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid payment method. Must be either "COD" or "Online Payment"'
+                message: 'Invalid payment method. Must be "cod" or "online"'
             });
         }
 
@@ -60,17 +47,10 @@ export const createOrder = async (req, res, next) => {
             });
         }
 
-        // Validate all items have id
-        const itemsWithMissingId = items.filter(item => !item || !item.id);
-        if (itemsWithMissingId.length > 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'All items must have a valid product ID'
-            });
-        }
+        // Items come in as { product, quantity, price }
+        const productIds = items.map(item => item.product);
 
-        // Check for duplicate product IDs
-        const productIds = items.map(item => item.id);
+        // Deduplicate
         const uniqueProductIds = [...new Set(productIds)];
         if (productIds.length !== uniqueProductIds.length) {
             return res.status(400).json({
@@ -81,7 +61,7 @@ export const createOrder = async (req, res, next) => {
 
         // Validate and fetch products with server-side pricing
         const products = await Product.find({ _id: { $in: productIds } });
-        
+
         if (products.length !== productIds.length) {
             return res.status(400).json({
                 success: false,
@@ -89,11 +69,11 @@ export const createOrder = async (req, res, next) => {
             });
         }
 
-        // Create order items with server-side pricing
+        // Build order items using server-side prices (ignore client-sent price)
         const orderItems = items.map(clientItem => {
-            const serverProduct = products.find(p => p._id.toString() === clientItem.id);
+            const serverProduct = products.find(p => p._id.toString() === clientItem.product.toString());
             if (!serverProduct) {
-                throw new Error(`Product with id ${clientItem.id} not found`);
+                throw new Error(`Product ${clientItem.product} not found`);
             }
             return {
                 id: serverProduct._id.toString(),
@@ -104,12 +84,20 @@ export const createOrder = async (req, res, next) => {
             };
         });
 
-        // Calculate pricing (used for both payment methods)
+        // Build customer object from authenticated user
+        const customer = {
+            name: req.user.name || req.user.username || 'Customer',
+            email: req.user.email || '',
+            phone: req.user.phone || req.user.mobile || '0000000000',
+            address: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress),
+            notes: notes || ''
+        };
+
+        // Calculate pricing server-side
         const subtotal = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
         const tax = parseFloat((subtotal * 0.07).toFixed(2));
-        const total = subtotal + tax + shipping;
+        const total = subtotal + tax + Number(shipping);
 
-        // Validate total is positive
         if (total <= 0) {
             return res.status(400).json({
                 success: false,
@@ -117,12 +105,10 @@ export const createOrder = async (req, res, next) => {
             });
         }
 
-        const normalizedPM = paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment';
         const orderId = `ORD-${uuidv4()}`;
         let newOrder;
 
         if (normalizedPM === 'Online Payment') {
-            // Validate Razorpay credentials
             if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
                 return res.status(500).json({
                     success: false,
@@ -140,7 +126,7 @@ export const createOrder = async (req, res, next) => {
 
             try {
                 const rpOrder = await razorpayInstance.orders.create({
-                    amount: Math.round(total * 100), // in paise
+                    amount: Math.round(total * 100),
                     currency: 'INR',
                     receipt: orderId,
                     notes: { orderId, customerEmail: customer.email }
@@ -151,17 +137,27 @@ export const createOrder = async (req, res, next) => {
                     user: req.user._id,
                     customer,
                     items: orderItems,
-                    shipping,
+                    shipping: Number(shipping),
                     subtotal,
                     tax,
                     total,
                     paymentMethod: normalizedPM,
                     paymentStatus: 'Unpaid',
-                    razorpayOrderId: rpOrder.id,
-                    notes
+                    razorpayOrderId: rpOrder.id
                 });
 
                 await newOrder.save();
+
+                // Decrement stock for each ordered product
+                await Product.bulkWrite(
+                    orderItems.map(item => ({
+                        updateOne: {
+                            filter: { _id: item.id },
+                            update: { $inc: { stock: -item.quantity } }
+                        }
+                    }))
+                );
+
                 return res.status(201).json({
                     success: true,
                     order: newOrder,
@@ -192,20 +188,30 @@ export const createOrder = async (req, res, next) => {
             user: req.user._id,
             customer,
             items: orderItems,
-            shipping,
+            shipping: Number(shipping),
             subtotal,
             tax,
             total,
             paymentMethod: normalizedPM,
-            paymentStatus: 'Paid',
-            notes
+            paymentStatus: 'Paid'
         });
-        
+
         await newOrder.save();
-        res.status(201).json({ 
+
+        // Decrement stock for each ordered product
+        await Product.bulkWrite(
+            orderItems.map(item => ({
+                updateOne: {
+                    filter: { _id: item.id },
+                    update: { $inc: { stock: -item.quantity } }
+                }
+            }))
+        );
+
+        res.status(201).json({
             success: true,
-            order: newOrder, 
-            checkoutUrl: null 
+            order: newOrder,
+            checkoutUrl: null
         });
 
     } catch (error) {
@@ -218,11 +224,11 @@ export const createOrder = async (req, res, next) => {
 export const verifyRazorpayPayment = async (req, res, next) => {
     try {
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-        
+
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Missing payment verification fields' 
+                message: 'Missing payment verification fields'
             });
         }
 
@@ -239,18 +245,18 @@ export const verifyRazorpayPayment = async (req, res, next) => {
             .digest('hex');
 
         if (generatedSignature !== razorpay_signature) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Invalid payment signature' 
+                message: 'Invalid payment signature'
             });
         }
 
         // Check if order exists and is not already paid (race condition prevention)
         const existingOrder = await Order.findOne({ razorpayOrderId: razorpay_order_id });
         if (!existingOrder) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 success: false,
-                message: 'Order not found' 
+                message: 'Order not found'
             });
         }
 
@@ -263,11 +269,11 @@ export const verifyRazorpayPayment = async (req, res, next) => {
         }
 
         const order = await Order.findOneAndUpdate(
-            { 
+            {
                 razorpayOrderId: razorpay_order_id,
                 paymentStatus: { $ne: 'Paid' } // Only update if not already paid
             },
-            { 
+            {
                 paymentStatus: 'Paid',
                 razorpayPaymentId: razorpay_payment_id,
                 razorpaySignature: razorpay_signature
@@ -276,9 +282,9 @@ export const verifyRazorpayPayment = async (req, res, next) => {
         );
 
         if (!order) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Order payment status could not be updated. It may already be paid.' 
+                message: 'Order payment status could not be updated. It may already be paid.'
             });
         }
 
@@ -304,7 +310,7 @@ export const getOrders = async (req, res, next) => {
         }
 
         const query = {};
-        
+
         // If user is not admin, only show their orders
         if (req.user && req.user.role !== 'admin') {
             query.user = req.user._id;
@@ -349,11 +355,11 @@ export const getOrderById = async (req, res, next) => {
         }
 
         const order = await Order.findById(req.params.id).lean();
-        
+
         if (!order) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 success: false,
-                message: 'Order not found' 
+                message: 'Order not found'
             });
         }
 
@@ -381,7 +387,7 @@ export const getOrderById = async (req, res, next) => {
 }
 
 //UPDATE ORDER BY ID
-export const updateOrder = async (req, res, next) => {  
+export const updateOrder = async (req, res, next) => {
     try {
         // Validate ObjectId format
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -392,11 +398,11 @@ export const updateOrder = async (req, res, next) => {
         }
 
         const order = await Order.findById(req.params.id);
-        
+
         if (!order) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 success: false,
-                message: 'Order not found' 
+                message: 'Order not found'
             });
         }
 
@@ -418,7 +424,7 @@ export const updateOrder = async (req, res, next) => {
 
         const allowed = ['status', 'paymentStatus', 'deliveryDate', 'notes', 'shipping'];
         const updateData = {};
-        
+
         allowed.forEach(field => {
             if (req.body[field] !== undefined) {
                 updateData[field] = req.body[field];
@@ -436,14 +442,14 @@ export const updateOrder = async (req, res, next) => {
             const subtotal = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
             const tax = parseFloat((subtotal * 0.07).toFixed(2));
             const newTotal = subtotal + tax + updateData.shipping;
-            
+
             if (newTotal <= 0) {
                 return res.status(400).json({
                     success: false,
                     message: 'Updated order total must be greater than zero'
                 });
             }
-            
+
             updateData.subtotal = subtotal;
             updateData.tax = tax;
             updateData.total = newTotal;
@@ -474,11 +480,11 @@ export const deleteOrder = async (req, res, next) => {
         }
 
         const order = await Order.findById(req.params.id);
-        
+
         if (!order) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 success: false,
-                message: 'Order not found' 
+                message: 'Order not found'
             });
         }
 
@@ -491,9 +497,9 @@ export const deleteOrder = async (req, res, next) => {
         }
 
         await Order.findByIdAndDelete(req.params.id);
-        res.json({ 
+        res.json({
             success: true,
-            message: 'Order deleted successfully' 
+            message: 'Order deleted successfully'
         });
     } catch (error) {
         console.error('DeleteOrder Error:', error);
@@ -506,25 +512,25 @@ export const handleRazorpayWebhook = async (req, res, next) => {
     try {
         const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
         if (!webhookSecret) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Webhook secret not configured' 
+                message: 'Webhook secret not configured'
             });
         }
 
         const signature = req.headers['x-razorpay-signature'];
         if (!signature) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Missing webhook signature header' 
+                message: 'Missing webhook signature header'
             });
         }
 
         // Validate req.body exists and is a Buffer or string
         if (!req.body) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Missing request body' 
+                message: 'Missing request body'
             });
         }
 
@@ -532,9 +538,9 @@ export const handleRazorpayWebhook = async (req, res, next) => {
         try {
             bodyString = typeof req.body === 'string' ? req.body : req.body.toString();
         } catch (error) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Invalid request body format' 
+                message: 'Invalid request body format'
             });
         }
 
@@ -544,9 +550,9 @@ export const handleRazorpayWebhook = async (req, res, next) => {
             .digest('hex');
 
         if (expected !== signature) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Invalid signature' 
+                message: 'Invalid signature'
             });
         }
 
@@ -555,16 +561,16 @@ export const handleRazorpayWebhook = async (req, res, next) => {
         try {
             payload = JSON.parse(bodyString);
         } catch (error) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Invalid JSON payload' 
+                message: 'Invalid JSON payload'
             });
         }
 
         if (!payload || !payload.event) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Invalid webhook payload structure' 
+                message: 'Invalid webhook payload structure'
             });
         }
 
@@ -586,7 +592,7 @@ export const handleRazorpayWebhook = async (req, res, next) => {
 
             if (orderId) {
                 const updateResult = await Order.findOneAndUpdate(
-                    { 
+                    {
                         razorpayOrderId: orderId,
                         paymentStatus: { $ne: 'Paid' } // Prevent duplicate updates
                     },

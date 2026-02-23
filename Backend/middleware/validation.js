@@ -34,26 +34,35 @@ export const validateRegister = [
         .notEmpty().withMessage('Email is required')
         .isEmail().withMessage('Invalid email format')
         .normalizeEmail(),
-    body('password')
-        .notEmpty().withMessage('Password is required')
-        .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
-        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/).withMessage(
-            'Password must contain uppercase, lowercase, number, and special character'
-        ),
     handleValidationErrors
 ];
 
 /**
- * User Login Validation
+ * Send Login OTP Validation
  */
-export const validateLogin = [
+export const validateSendLoginOtp = [
     body('email')
         .trim()
         .notEmpty().withMessage('Email is required')
         .isEmail().withMessage('Invalid email format')
         .normalizeEmail(),
-    body('password')
-        .notEmpty().withMessage('Password is required'),
+    handleValidationErrors
+];
+
+/**
+ * Verify Login OTP Validation
+ */
+export const validateLoginOtpVerification = [
+    body('email')
+        .trim()
+        .notEmpty().withMessage('Email is required')
+        .isEmail().withMessage('Invalid email format')
+        .normalizeEmail(),
+    body('otp')
+        .trim()
+        .notEmpty().withMessage('OTP is required')
+        .isLength({ min: 4, max: 4 }).withMessage('OTP must be 4 digits')
+        .isNumeric().withMessage('OTP must contain only numbers'),
     handleValidationErrors
 ];
 
@@ -77,8 +86,8 @@ export const validateUpdateUser = [
     body('password')
         .optional()
         .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
-        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/).withMessage(
-            'Password must contain uppercase, lowercase, number, and special character'
+        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage(
+            'Password must contain at least one uppercase letter, one lowercase letter, and one number'
         ),
     handleValidationErrors
 ];
@@ -101,12 +110,15 @@ export const validateCreateProduct = [
         .isLength({ max: 1000 }).withMessage('Description cannot exceed 1000 characters'),
     body('OldPrice')
         .notEmpty().withMessage('Old price is required')
+        .toFloat()
         .isFloat({ min: 0 }).withMessage('Old price must be a positive number'),
     body('price')
         .notEmpty().withMessage('Price is required')
+        .toFloat()
         .isFloat({ min: 0 }).withMessage('Price must be a positive number')
         .custom((value, { req }) => {
-            if (parseFloat(value) > parseFloat(req.body.OldPrice)) {
+            const oldPrice = parseFloat(req.body.OldPrice);
+            if (!isNaN(oldPrice) && parseFloat(value) > oldPrice) {
                 throw new Error('Price cannot be greater than old price');
             }
             return true;
@@ -152,29 +164,15 @@ export const validateUpdateCart = [
 export const validateCreateOrder = [
     body('items')
         .isArray({ min: 1 }).withMessage('Items must be a non-empty array'),
-    body('items.*.id')
+    body('items.*.product')
         .isMongoId().withMessage('Invalid product ID in items'),
     body('items.*.quantity')
         .isInt({ min: 1 }).withMessage('Item quantity must be at least 1'),
-    body('customer.name')
-        .trim()
-        .notEmpty().withMessage('Customer name is required')
-        .isLength({ min: 2, max: 100 }).withMessage('Name must be between 2 and 100 characters'),
-    body('customer.email')
-        .trim()
-        .notEmpty().withMessage('Customer email is required')
-        .isEmail().withMessage('Invalid email format')
-        .normalizeEmail(),
-    body('customer.phone')
-        .notEmpty().withMessage('Phone is required')
-        .isMobilePhone('any', { strictMode: false }).withMessage('Invalid phone number'),
-    body('customer.address')
-        .trim()
-        .notEmpty().withMessage('Address is required')
-        .isLength({ min: 5, max: 500 }).withMessage('Address must be between 5 and 500 characters'),
     body('paymentMethod')
         .notEmpty().withMessage('Payment method is required')
-        .isIn(['COD', 'Online Payment']).withMessage('Invalid payment method. Must be either "COD" or "Online Payment"'),
+        .isIn(['cod', 'online']).withMessage('Invalid payment method. Must be "cod" or "online"'),
+    body('shippingAddress')
+        .notEmpty().withMessage('Shipping address is required'),
     body('shipping')
         .optional()
         .isFloat({ min: 0 }).withMessage('Shipping must be a non-negative number'),
@@ -189,7 +187,7 @@ export const validateCreateOrder = [
  * Address Validation
  */
 export const validateAddress = [
-    body('address_line')
+    body('addressLine')
         .trim()
         .notEmpty().withMessage('Address line is required')
         .isLength({ min: 5, max: 200 }).withMessage('Address must be between 5 and 200 characters'),
@@ -269,8 +267,8 @@ export const validateResetPassword = [
     body('newPassword')
         .notEmpty().withMessage('New password is required')
         .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
-        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/).withMessage(
-            'Password must contain uppercase, lowercase, number, and special character'
+        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage(
+            'Password must contain at least one uppercase letter, one lowercase letter, and one number'
         ),
     body('confirmPassword')
         .notEmpty().withMessage('Confirm password is required')
