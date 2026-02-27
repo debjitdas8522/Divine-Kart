@@ -7,13 +7,15 @@
   "author": "Chiranjit Das",
   "main": "app.js",
   "scripts": {
-    "start": "nodemon app.js",
+    "start": "node app.js",
+    "dev": "nodemon app.js",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
     "cookie-parser": "^1.4.7",

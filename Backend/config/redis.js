@@ -1,6 +1,6 @@
 import redis from 'redis';
 
-let redisClient = null;
+export let redisClient = null;
 let connectionAttempted = false;
 let connectionFailed = false;
 

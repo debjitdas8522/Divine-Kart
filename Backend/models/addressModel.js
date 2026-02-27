@@ -1,6 +1,14 @@
 import mongoose from "mongoose";
 
 const addressSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        default: ""
+    },
+    type: {
+        type: String,
+        default: "Home"
+    },
     addressLine: {
         type: String,
         default: ""
@@ -19,9 +27,9 @@ const addressSchema = new mongoose.Schema({
     country: {
         type: String
     },
-    mobile: {
-        type: Number,
-        default: null
+    phone: {
+        type: String,
+        required: true
     },
     isActive: {
         type: Boolean,

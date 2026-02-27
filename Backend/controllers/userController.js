@@ -15,167 +15,136 @@ const generateToken = (userId) =>
     jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRE })
 
 
-// In-memory store for pending registrations (name, otp, expiry keyed by email)
+import { getRedisClient } from '../config/redis.js';
+
+// In-memory store for pending registrations (fallback if Redis is down)
 const pendingRegistrations = new Map();
 
-// Step 1: Send OTP for new registration
+// Helper to get redis key
+const getRegKey = (email) => `reg_pending:${email}`;
+
+// DEPRECATED: Standard registration is now handled via Unified Auth (SIOS) in sendLoginOtp
 export async function sendRegisterOtp(req, res) {
-    const { name } = req.body;
-    const sanitizedEmail = req.body.email?.trim().toLowerCase() || '';
-    const sanitizedName = validator.escape((name ?? '').trim());
-
-    const nameRegex = /^[\p{L}\p{N} .'-]{1,100}$/u;
-    if (!sanitizedName || !sanitizedEmail) {
-        return res.status(400).json({ success: false, message: 'Name and email are required' });
-    }
-    if (!nameRegex.test(sanitizedName)) {
-        return res.status(400).json({ success: false, message: 'Name contains invalid characters' });
-    }
-    if (!validator.isEmail(sanitizedEmail)) {
-        return res.status(400).json({ success: false, message: 'Invalid email format' });
-    }
-
-    try {
-        const existing = await User.findOne({ email: sanitizedEmail });
-        if (existing) {
-            return res.status(400).json({ success: false, message: 'Email already registered' });
-        }
-
-        const otp = String(Math.floor(Math.random() * 9000) + 1000); // 4-digit
-        const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
-
-        pendingRegistrations.set(sanitizedEmail, { name: sanitizedName, otp, expiry });
-
-        await sendEmail({
-            sendTo: sanitizedEmail,
-            subject: 'Your DivineKart Registration OTP',
-            html: loginOtpTemplate({ name: sanitizedName, otp }),
-        });
-
-        return res.json({ success: true, message: 'OTP sent to your email' });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ success: false, message: 'Server Error' });
-    }
+    return res.status(410).json({ success: false, message: "This endpoint is deprecated. Use /send-login-otp for both sign-in and sign-up." });
 }
 
-// Step 2: Verify OTP and create account
 export async function verifyRegisterOtp(req, res) {
-    const sanitizedEmail = req.body.email?.trim().toLowerCase() || '';
-    const { otp } = req.body;
-
-    const pending = pendingRegistrations.get(sanitizedEmail);
-    if (!pending) {
-        return res.status(400).json({ success: false, message: 'No pending registration for this email. Please request a new OTP.' });
-    }
-
-    if (new Date() > pending.expiry) {
-        pendingRegistrations.delete(sanitizedEmail);
-        return res.status(400).json({ success: false, message: 'OTP has expired. Please start again.' });
-    }
-
-    if (otp !== pending.otp) {
-        return res.status(400).json({ success: false, message: 'Invalid OTP' });
-    }
-
-    try {
-        const existing = await User.findOne({ email: sanitizedEmail });
-        if (existing) {
-            pendingRegistrations.delete(sanitizedEmail);
-            return res.status(400).json({ success: false, message: 'Email already registered' });
-        }
-
-        const user = await User.create({ name: pending.name, email: sanitizedEmail, password: 'OTP_AUTH_' + Date.now() });
-        pendingRegistrations.delete(sanitizedEmail);
-
-        const token = generateToken(user._id);
-        return res.status(201).json({
-            success: true,
-            token,
-            user: { id: user._id, name: user.name, email: user.email, role: user.role },
-        });
-    } catch (error) {
-        console.error(error);
-        if (error.code === 11000) {
-            return res.status(400).json({ success: false, message: 'Email already registered' });
-        }
-        return res.status(500).json({ success: false, message: 'Server Error' });
-    }
+    return res.status(410).json({ success: false, message: "This endpoint is deprecated. Use /verify-login-otp for both sign-in and sign-up." });
 }
 
-// Send login OTP to user email
+// Send login OTP to user email or phone (Unified Sign-In or Sign-Up)
 export async function sendLoginOtp(req, res) {
-    const sanitizedEmail = req.body.email?.trim().toLowerCase() || '';
+    const { email, phone } = req.body;
+    const identifier = email ? email.trim().toLowerCase() : String(phone).trim();
+    const query = email ? { email: identifier } : { phone: identifier };
 
     try {
-        const user = await User.findOne({ email: sanitizedEmail });
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "No account found with this email",
+        const user = await User.findOne(query);
+        const otp = String(Math.floor(Math.random() * 9000) + 1000);
+        const ttl = 10 * 60; // 10 minutes
+
+        if (user) {
+            // Existing User: Update record
+            await User.findByIdAndUpdate(user._id, {
+                loginOtp: otp,
+                loginOtpExpiry: new Date(Date.now() + ttl * 1000),
+            });
+        } else {
+            // New User: Store in Redis or Memory
+            const redisClient = getRedisClient();
+            const key = getRegKey(identifier);
+            if (redisClient?.isOpen) {
+                await redisClient.setEx(key, ttl, JSON.stringify({ otp }));
+            } else {
+                pendingRegistrations.set(identifier, { otp, expiry: new Date(Date.now() + ttl * 1000) });
+            }
+        }
+
+        // Send OTP via email if identifier is email or user has email
+        const targetEmail = email || (user?.email);
+        if (targetEmail) {
+            await sendEmail({
+                sendTo: targetEmail,
+                subject: "Your DivineKart OTP",
+                html: loginOtpTemplate({ name: user?.name || "Customer", otp }),
             });
         }
 
-        // 4-digit OTP
-        const otp = String(Math.floor(Math.random() * 9000) + 1000);
-        const expireTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-        await User.findByIdAndUpdate(user._id, {
-            loginOtp: otp,
-            loginOtpExpiry: expireTime,
-        });
-
-        await sendEmail({
-            sendTo: sanitizedEmail,
-            subject: "Your DivineKart Login OTP",
-            html: loginOtpTemplate({ name: user.name, otp }),
-        });
+        // LOG FOR TESTING (Temporary until SMS implementation)
+        console.log('------------------------------------');
+        console.log(`[AUTH] OTP for ${identifier}: ${otp}`);
+        console.log('------------------------------------');
 
         return res.json({
             success: true,
-            message: "OTP sent to your email",
+            message: `OTP sent successfully to your registered ${targetEmail ? 'email' : 'contact'}`,
         });
     } catch (error) {
-        console.error(error);
+        console.error("[sendLoginOtp] Error:", error);
         return res.status(500).json({ success: false, message: "Server Error" });
     }
 }
 
-// Verify login OTP and issue JWT
+// Verify login OTP and issue JWT (Unified - handles Auto-Registration)
 export async function verifyLoginOtp(req, res) {
-    const sanitizedEmail = req.body.email?.trim().toLowerCase() || '';
-    const { otp } = req.body;
+    const { email, phone, otp } = req.body;
+    const identifier = email ? email.trim().toLowerCase() : String(phone).trim();
+    const query = email ? { email: identifier } : { phone: identifier };
 
     try {
-        const user = await User.findOne({ email: sanitizedEmail });
-        if (!user) {
-            return res.status(404).json({ success: false, message: "No account found with this email" });
-        }
-
-        if (!user.loginOtp || !user.loginOtpExpiry) {
-            return res.status(400).json({ success: false, message: "OTP not requested. Please request a new OTP." });
-        }
-
-        if (new Date() > new Date(user.loginOtpExpiry)) {
+        let user = await User.findOne(query);
+        
+        if (user) {
+            // Case 1: Existing User
+            if (!user.loginOtp || !user.loginOtpExpiry || new Date() > new Date(user.loginOtpExpiry)) {
+                return res.status(400).json({ success: false, message: "OTP expired or not requested" });
+            }
+            if (otp !== user.loginOtp) {
+                return res.status(400).json({ success: false, message: "Invalid OTP" });
+            }
+            // Clear OTP
             await User.findByIdAndUpdate(user._id, { loginOtp: null, loginOtpExpiry: null });
-            return res.status(400).json({ success: false, message: "OTP has expired. Please request a new one." });
-        }
+        } else {
+            // Case 2: New User (Auto-Registration)
+            let pending = null;
+            const redisClient = getRedisClient();
+            if (redisClient?.isOpen) {
+                const data = await redisClient.get(getRegKey(identifier));
+                if (data) pending = JSON.parse(data);
+            } else {
+                pending = pendingRegistrations.get(identifier);
+                if (pending && new Date() > pending.expiry) {
+                    pendingRegistrations.delete(identifier);
+                    pending = null;
+                }
+            }
 
-        if (otp !== user.loginOtp) {
-            return res.status(400).json({ success: false, message: "Invalid OTP" });
-        }
+            if (!pending || otp !== pending.otp) {
+                return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+            }
 
-        // Clear OTP after successful verification
-        await User.findByIdAndUpdate(user._id, { loginOtp: null, loginOtpExpiry: null });
+            // Create User
+            user = await User.create({
+                name: "New User",
+                email: email ? identifier : `user_${Date.now()}@divinekart.temp`, // Fallback temp email if required for index
+                phone: phone ? identifier : undefined,
+                password: 'OTP_AUTH_' + Date.now(),
+                role: 'user'
+            });
+
+            // Cleanup
+            if (redisClient?.isOpen) await redisClient.del(getRegKey(identifier));
+            else pendingRegistrations.delete(identifier);
+        }
 
         const token = generateToken(user._id);
         return res.json({
             success: true,
             token,
-            user: { id: user._id, name: user.name, email: user.email, role: user.role },
+            user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone },
         });
     } catch (error) {
-        console.error(error);
+        console.error("[verifyLoginOtp] Error:", error);
         return res.status(500).json({ success: false, message: "Server Error" });
     }
 }
@@ -185,7 +154,7 @@ export async function verifyLoginOtp(req, res) {
 export async function updateUserDetails(request, response) {
     try {
         const userId = request.userId //auth middleware
-        const { name, email, mobile, password } = request.body
+        const { name, email, phone, password } = request.body
 
         let hashPassword = ""
 
@@ -197,7 +166,7 @@ export async function updateUserDetails(request, response) {
         const updateUser = await User.updateOne({ _id: userId }, {
             ...(name && { name: name }),
             ...(email && { email: email }),
-            ...(mobile && { mobile: mobile }),
+            ...(phone && { phone: phone }),
             ...(password && { password: hashPassword })
         })
 
@@ -456,5 +425,96 @@ export async function userDetails(request, response) {
             error: true,
             success: false
         })
+    }
+}
+
+/**
+ * Request email update - Step 1: Send OTP to new email
+ */
+export async function requestEmailUpdate(req, res) {
+    const userId = req.userId;
+    const sanitizedEmail = req.body.newEmail?.trim().toLowerCase() || '';
+
+    if (!validator.isEmail(sanitizedEmail)) {
+        return res.status(400).json({ success: false, message: 'Invalid email format' });
+    }
+
+    try {
+        const existing = await User.findOne({ email: sanitizedEmail });
+        if (existing) {
+            return res.status(400).json({ success: false, message: 'Email already in use' });
+        }
+
+        const otp = String(Math.floor(Math.random() * 900000) + 100000); 
+        const ttl = 15 * 60; 
+
+        const redisClient = getRedisClient();
+        const key = `email_update_pending:${userId}`;
+        const updateData = { newEmail: sanitizedEmail, otp };
+
+        if (redisClient) {
+            await redisClient.setEx(key, ttl, JSON.stringify(updateData));
+        } else {
+            pendingRegistrations.set(key, { ...updateData, expiry: new Date(Date.now() + ttl * 1000) });
+        }
+
+        await sendEmail({
+            sendTo: sanitizedEmail,
+            subject: 'Verify your new email - DivineKart',
+            html: `<h1>Email Verification</h1><p>Your OTP to update your email to <b>${sanitizedEmail}</b> is: <b>${otp}</b>. Valid for 15 mins.</p>`,
+        });
+
+        return res.json({ success: true, message: 'Verification OTP sent to your new email' });
+    } catch (error) {
+        console.error("[requestEmailUpdate] Error:", error);
+        return res.status(500).json({ success: false, message: 'Server Error' });
+    }
+}
+
+/**
+ * Verify OTP - Step 2: Update email in DB
+ */
+export async function verifyEmailUpdate(req, res) {
+    const userId = req.userId;
+    const { otp } = req.body;
+
+    const redisClient = getRedisClient();
+    const key = `email_update_pending:${userId}`;
+    let pending = null;
+
+    try {
+        if (redisClient) {
+            const data = await redisClient.get(key);
+            if (data) pending = JSON.parse(data);
+        } else {
+            pending = pendingRegistrations.get(key);
+            if (pending && new Date() > pending.expiry) {
+                pendingRegistrations.delete(key);
+                pending = null;
+            }
+        }
+
+        if (!pending) {
+            return res.status(400).json({ success: false, message: 'No pending email update or OTP expired.' });
+        }
+
+        if (otp !== pending.otp) {
+            return res.status(400).json({ success: false, message: 'Invalid OTP' });
+        }
+
+        const existing = await User.findOne({ email: pending.newEmail });
+        if (existing) {
+            return res.status(400).json({ success: false, message: 'Email already taken' });
+        }
+
+        await User.findByIdAndUpdate(userId, { email: pending.newEmail });
+
+        if (redisClient) await redisClient.del(key);
+        else pendingRegistrations.delete(key);
+
+        return res.json({ success: true, message: 'Email updated successfully' });
+    } catch (error) {
+        console.error("[verifyEmailUpdate] Error:", error);
+        return res.status(500).json({ success: false, message: 'Server Error' });
     }
 }

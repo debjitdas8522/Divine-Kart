@@ -16,6 +16,7 @@ import { handleRazorpayWebhook } from './controllers/orderController.js'
 import authMiddleware from './middleware/auth.js'
 import addressRouter from './routes/addressRoutes.js'
 import cartRouter from './routes/cartRoutes.js'
+import categoryRouter from './routes/categoryRoutes.js'
 import orderRouter from './routes/orderRoutes.js'
 import productRouter from './routes/productRoutes.js'
 import recommendationRouter from './routes/recommendationRoutes.js'
@@ -37,8 +38,6 @@ const app = express()
 
 // Security Middleware
 app.use(helmet()); // Set security HTTP headers
-// Note: mongoSanitize removed due to compatibility issues with Express 5
-// Use input validation middleware instead for protection
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }))
@@ -143,6 +142,7 @@ app.use('/api/cart', authMiddleware, cartRouter);
 //PRODUCT ROUTE
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
 app.use('/api/products', productRouter)
+app.use('/api/category', categoryRouter)
 app.use('/api/recommendations', recommendationRouter)
 app.use('/api/orders', orderRouter)
 app.use("/api/address", addressRouter)
@@ -207,7 +207,7 @@ app.get('/', (req, res) => {
 
 // Centralized error handling middleware
 app.use((error, req, res, next) => {
-    console.error('Error:', error);
+    console.error(`[Global Error @ ${req.method} ${req.url}]:`, error);
 
     // Mongoose validation error
     if (error.name === 'ValidationError') {

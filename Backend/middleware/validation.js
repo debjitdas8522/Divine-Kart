@@ -41,11 +41,20 @@ export const validateRegister = [
  * Send Login OTP Validation
  */
 export const validateSendLoginOtp = [
-    body('email')
-        .trim()
-        .notEmpty().withMessage('Email is required')
-        .isEmail().withMessage('Invalid email format')
-        .normalizeEmail(),
+    body().custom((value, { req }) => {
+        const { email, phone } = req.body;
+        if (!email && !phone) {
+            throw new Error('Email or Phone is required');
+        }
+        if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+            throw new Error('Invalid email format');
+        }
+        // Custom phone validation if provided
+        if (phone && !/^\d{10,15}$/.test(phone)) {
+            throw new Error('Invalid phone number format');
+        }
+        return true;
+    }),
     handleValidationErrors
 ];
 
@@ -53,11 +62,13 @@ export const validateSendLoginOtp = [
  * Verify Login OTP Validation
  */
 export const validateLoginOtpVerification = [
-    body('email')
-        .trim()
-        .notEmpty().withMessage('Email is required')
-        .isEmail().withMessage('Invalid email format')
-        .normalizeEmail(),
+    body().custom((value, { req }) => {
+        const { email, phone } = req.body;
+        if (!email && !phone) {
+            throw new Error('Email or Phone is required');
+        }
+        return true;
+    }),
     body('otp')
         .trim()
         .notEmpty().withMessage('OTP is required')
@@ -80,9 +91,9 @@ export const validateUpdateUser = [
         .trim()
         .isEmail().withMessage('Invalid email format')
         .normalizeEmail(),
-    body('mobile')
+    body('phone')
         .optional()
-        .isMobilePhone('any', { strictMode: false }).withMessage('Invalid mobile number'),
+        .isMobilePhone('any', { strictMode: false }).withMessage('Invalid phone number'),
     body('password')
         .optional()
         .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
@@ -207,9 +218,9 @@ export const validateAddress = [
         .trim()
         .notEmpty().withMessage('Country is required')
         .isLength({ min: 2, max: 50 }).withMessage('Country must be between 2 and 50 characters'),
-    body('mobile')
-        .notEmpty().withMessage('Mobile number is required')
-        .isMobilePhone('any', { strictMode: false }).withMessage('Invalid mobile number'),
+    body('phone')
+        .notEmpty().withMessage('Phone number is required')
+        .isMobilePhone('any', { strictMode: false }).withMessage('Invalid phone number'),
     handleValidationErrors
 ];
 

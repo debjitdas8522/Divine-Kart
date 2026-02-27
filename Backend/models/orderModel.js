@@ -44,12 +44,12 @@ const orderSchema = new mongoose.Schema({
         default: 0, 
         min: 0 
     },
-    shipping: { 
+    deliveryFee: { 
         type: Number, 
         default: 0, 
         min: 0 
     },
-    total: { 
+    totalAmount: { 
         type: Number, 
         default: 0, 
         min: 0 
@@ -93,6 +93,8 @@ const orderSchema = new mongoose.Schema({
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ user: 1 });
 
+import { PRICING_CONFIG } from '../config/pricing.js';
+
 // Server pricing logic - pre-save hook
 orderSchema.pre('save', function(next) {
     // Validate items array exists and is not empty
@@ -101,11 +103,11 @@ orderSchema.pre('save', function(next) {
     }
     
     this.subtotal = this.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    this.tax = parseFloat((this.subtotal * 0.07).toFixed(2));
-    this.total = this.subtotal + this.tax + (this.shipping || 0);
+    this.tax = parseFloat((this.subtotal * PRICING_CONFIG.TAX_RATE).toFixed(2));
+    this.totalAmount = this.subtotal + this.tax + (this.deliveryFee || PRICING_CONFIG.DEFAULT_SHIPPING);
     
     // Validate total is positive
-    if (this.total <= 0) {
+    if (this.totalAmount <= 0) {
         return next(new Error('Order total must be greater than zero'));
     }
     

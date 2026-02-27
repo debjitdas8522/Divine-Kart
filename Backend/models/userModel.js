@@ -7,16 +7,17 @@ const userSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-        required: [true, "Please provide email"],
+        required: false,
         unique: true,
         index: true,
+        sparse: true,
     },
     password: {
         type: String,
         required: [true, "Please provide password"],
     },
-    mobile: {
-        type: Number,
+    phone: {
+        type: String,
         default: null
     },
     refreshToken: {

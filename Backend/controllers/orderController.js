@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import mongoose from 'mongoose';
 import Razorpay from 'razorpay';
 import { v4 as uuidv4 } from 'uuid';
+import { PRICING_CONFIG } from '../config/pricing.js';
 import Order from '../models/orderModel.js';
 import { Product } from '../models/productModel.js';
 
@@ -88,15 +89,15 @@ export const createOrder = async (req, res, next) => {
         const customer = {
             name: req.user.name || req.user.username || 'Customer',
             email: req.user.email || '',
-            phone: req.user.phone || req.user.mobile || '0000000000',
+            phone: req.user.phone || '0000000000',
             address: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress),
             notes: notes || ''
         };
 
         // Calculate pricing server-side
         const subtotal = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-        const tax = parseFloat((subtotal * 0.07).toFixed(2));
-        const total = subtotal + tax + Number(shipping);
+        const tax = parseFloat((subtotal * PRICING_CONFIG.TAX_RATE).toFixed(2));
+        const total = subtotal + tax + Number(shipping || PRICING_CONFIG.DEFAULT_SHIPPING);
 
         if (total <= 0) {
             return res.status(400).json({
@@ -137,16 +138,21 @@ export const createOrder = async (req, res, next) => {
                     user: req.user._id,
                     customer,
                     items: orderItems,
-                    shipping: Number(shipping),
+                    deliveryFee: Number(shipping),
                     subtotal,
                     tax,
-                    total,
+                    totalAmount: total,
                     paymentMethod: normalizedPM,
                     paymentStatus: 'Unpaid',
                     razorpayOrderId: rpOrder.id
                 });
 
                 await newOrder.save();
+
+                // Update user order history
+                await User.findByIdAndUpdate(req.user._id, {
+                    $push: { orderHistory: newOrder._id }
+                });
 
                 // Decrement stock for each ordered product
                 await Product.bulkWrite(
@@ -188,15 +194,20 @@ export const createOrder = async (req, res, next) => {
             user: req.user._id,
             customer,
             items: orderItems,
-            shipping: Number(shipping),
+            deliveryFee: Number(shipping),
             subtotal,
             tax,
-            total,
+            totalAmount: total,
             paymentMethod: normalizedPM,
             paymentStatus: 'Paid'
         });
 
         await newOrder.save();
+
+        // Update user order history
+        await User.findByIdAndUpdate(req.user._id, {
+            $push: { orderHistory: newOrder._id }
+        });
 
         // Decrement stock for each ordered product
         await Product.bulkWrite(
@@ -422,7 +433,7 @@ export const updateOrder = async (req, res, next) => {
             }
         }
 
-        const allowed = ['status', 'paymentStatus', 'deliveryDate', 'notes', 'shipping'];
+        const allowed = ['status', 'paymentStatus', 'deliveryDate', 'notes', 'deliveryFee'];
         const updateData = {};
 
         allowed.forEach(field => {
@@ -431,17 +442,17 @@ export const updateOrder = async (req, res, next) => {
             }
         });
 
-        // If shipping is updated, recalculate total
-        if (updateData.shipping !== undefined) {
+        // If deliveryFee is updated, recalculate total
+        if (updateData.deliveryFee !== undefined) {
             if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Cannot update shipping: order has no items'
+                    message: 'Cannot update deliveryFee: order has no items'
                 });
             }
             const subtotal = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-            const tax = parseFloat((subtotal * 0.07).toFixed(2));
-            const newTotal = subtotal + tax + updateData.shipping;
+            const tax = parseFloat((subtotal * PRICING_CONFIG.TAX_RATE).toFixed(2));
+            const newTotal = subtotal + tax + (updateData.deliveryFee || PRICING_CONFIG.DEFAULT_SHIPPING);
 
             if (newTotal <= 0) {
                 return res.status(400).json({
@@ -452,7 +463,7 @@ export const updateOrder = async (req, res, next) => {
 
             updateData.subtotal = subtotal;
             updateData.tax = tax;
-            updateData.total = newTotal;
+            updateData.totalAmount = newTotal;
         }
 
         const updated = await Order.findByIdAndUpdate(

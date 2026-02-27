@@ -1,103 +1,230 @@
 import Order from '../models/orderModel.js';
 import { Product } from '../models/productModel.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { redisClient } from '../config/redis.js';
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// ─── Cache Helpers ────────────────────────────────────────────────────────────
+
+const getCache = async (key) => {
+  try {
+    const data = await redisClient.get(key);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
+};
+
+const setCache = async (key, value, ttlSeconds = 3600) => {
+  try {
+    await redisClient.setEx(key, ttlSeconds, JSON.stringify(value));
+  } catch (err) {
+    console.warn('Redis cache set failed:', err.message);
+  }
+};
+
+// ─── AI-Powered Similar Products ─────────────────────────────────────────────
 
 /**
- * Get personalized product recommendations for a user
- * Uses collaborative filtering and content-based filtering
+ * Get products similar to a given product using Gemini AI.
+ * Falls back to category + price range if AI fails.
+ */
+export const getSimilarProducts = async (productId, limit = 5) => {
+  const cacheKey = `similar:${productId}`;
+
+  try {
+    // 1. Check Redis cache first
+    const cached = await getCache(cacheKey);
+    if (cached) return cached;
+
+    // 2. Fetch the target product
+    const product = await Product.findById(productId).lean();
+    if (!product) return [];
+
+    // 3. Get candidate products from the same category
+    const candidates = await Product.find({
+      category: product.category,
+      _id: { $ne: productId },
+    })
+      .limit(20)
+      .lean();
+
+    if (candidates.length === 0) return [];
+
+    // 4. Ask Gemini to rank candidates by semantic similarity
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const prompt = `
+You are a product similarity engine for an e-commerce store.
+
+Target product:
+- Name: ${product.name}
+- Description: ${product.description || 'N/A'}
+- Price: ${product.price}
+
+Candidate products:
+${JSON.stringify(
+  candidates.map((p) => ({
+    id: p._id.toString(),
+    name: p.name,
+    description: p.description || '',
+    price: p.price,
+  })),
+  null,
+  2
+)}
+
+Task: Return ONLY a raw JSON array of the top ${limit} most similar product IDs 
+ordered by similarity score (most similar first).
+Do NOT include markdown, explanation, or extra text.
+Example output: ["id1", "id2", "id3"]
+    `.trim();
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+
+    // 5. Safely parse the AI response
+    const cleanJson = text.replace(/```json|```/g, '').trim();
+    const rankedIds = JSON.parse(cleanJson);
+
+    // 6. Map IDs back to product objects maintaining ranked order
+    const ranked = rankedIds
+      .map((id) => candidates.find((p) => p._id.toString() === id.toString()))
+      .filter(Boolean)
+      .slice(0, limit);
+
+    // 7. Cache result for 1 hour
+    await setCache(cacheKey, ranked, 3600);
+
+    return ranked;
+  } catch (error) {
+    console.error('getSimilarProducts (AI) error:', error.message);
+
+    // ── Fallback: category + price range ──
+    try {
+      const product = await Product.findById(productId).lean();
+      if (!product) return [];
+      const priceRange = product.price * 0.3;
+      return await Product.find({
+        category: product.category,
+        price: {
+          $gte: product.price - priceRange,
+          $lte: product.price + priceRange,
+        },
+        _id: { $ne: productId },
+      })
+        .limit(limit)
+        .lean();
+    } catch (fallbackError) {
+      console.error('getSimilarProducts (fallback) error:', fallbackError.message);
+      return [];
+    }
+  }
+};
+
+// ─── Personalized Recommendations ────────────────────────────────────────────
+
+/**
+ * Get personalized product recommendations for a user.
+ * Uses collaborative filtering based on order history.
+ * Falls back to popular products for new/guest users.
  */
 export const getRecommendations = async (userId, limit = 10) => {
-  try {
-    if (!userId) {
-      // For non-logged-in users, return popular products
-      return await getPopularProducts(limit);
-    }
+  const cacheKey = `recommendations:${userId}`;
 
-    // Get user's order history
+  try {
+    // 1. Guest users → popular products
+    if (!userId) return await getPopularProducts(limit);
+
+    // 2. Check cache
+    const cached = await getCache(cacheKey);
+    if (cached) return cached;
+
+    // 3. Fetch order history
     const userOrders = await Order.find({ user: userId })
       .populate('items.id')
       .lean();
 
-    // If user has no orders, return popular products
     if (!userOrders || userOrders.length === 0) {
       return await getPopularProducts(limit);
     }
 
-    // Extract purchased product IDs and categories
+    // 4. Extract purchased product IDs and category preferences (weighted)
     const purchasedProductIds = new Set();
     const preferredCategories = new Map();
 
-    userOrders.forEach(order => {
-      order.items.forEach(item => {
+    userOrders.forEach((order) => {
+      order.items.forEach((item) => {
         if (item.id) {
           purchasedProductIds.add(item.id._id.toString());
-          
-          // Track category preferences with weights
           const category = item.id.category;
           if (category) {
-            const currentWeight = preferredCategories.get(category) || 0;
-            preferredCategories.set(category, currentWeight + item.quantity);
+            const current = preferredCategories.get(category) || 0;
+            preferredCategories.set(category, current + item.quantity);
           }
         }
       });
     });
 
-    // Get products from preferred categories (excluding already purchased)
     const categoryArray = Array.from(preferredCategories.keys());
-    
-    if (categoryArray.length === 0) {
-      return await getPopularProducts(limit);
-    }
+    if (categoryArray.length === 0) return await getPopularProducts(limit);
 
-    // Find similar products
+    // 5. Fetch unseen products from preferred categories
     const recommendations = await Product.find({
       category: { $in: categoryArray },
-      _id: { $nin: Array.from(purchasedProductIds) }
+      _id: { $nin: Array.from(purchasedProductIds) },
     })
-      .limit(limit * 2) // Get more to filter
+      .limit(limit * 2)
       .lean();
 
-    // Rank by category preference weight
+    // 6. Rank by category preference weight
     const ranked = recommendations
-      .map(product => ({
+      .map((product) => ({
         ...product,
-        score: preferredCategories.get(product.category) || 0
+        score: preferredCategories.get(product.category) || 0,
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
-    // If we don't have enough recommendations, fill with popular products
+    // 7. Pad with popular products if not enough results
     if (ranked.length < limit) {
       const popular = await getPopularProducts(limit - ranked.length);
       ranked.push(...popular);
     }
 
+    // 8. Cache for 30 minutes (user-specific, changes more often)
+    await setCache(cacheKey, ranked, 1800);
+
     return ranked;
   } catch (error) {
-    console.error('Recommendation error:', error);
-    // Fallback to popular products on error
+    console.error('getRecommendations error:', error.message);
     return await getPopularProducts(limit);
   }
 };
 
+// ─── Frequently Bought Together ───────────────────────────────────────────────
+
 /**
- * Get products frequently bought together
+ * Get products frequently ordered alongside a given product.
  */
 export const getFrequentlyBoughtTogether = async (productId, limit = 5) => {
+  const cacheKey = `fbt:${productId}`;
+
   try {
-    // Find orders containing this product
-    const orders = await Order.find({
-      'items.id': productId
-    }).lean();
+    // 1. Check cache
+    const cached = await getCache(cacheKey);
+    if (cached) return cached;
 
-    if (orders.length === 0) {
-      return await getPopularProducts(limit);
-    }
+    // 2. Find orders containing this product
+    const orders = await Order.find({ 'items.id': productId }).lean();
+    if (orders.length === 0) return await getPopularProducts(limit);
 
-    // Count co-occurrences
+    // 3. Count co-occurrences with other products
     const coOccurrences = new Map();
 
-    orders.forEach(order => {
-      order.items.forEach(item => {
+    orders.forEach((order) => {
+      order.items.forEach((item) => {
         const itemId = item.id?.toString() || item.id;
         if (itemId && itemId !== productId.toString()) {
           const count = coOccurrences.get(itemId) || 0;
@@ -106,103 +233,82 @@ export const getFrequentlyBoughtTogether = async (productId, limit = 5) => {
       });
     });
 
-    // Get top co-occurring products
+    // 4. Sort by frequency and take top IDs
     const sortedIds = Array.from(coOccurrences.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, limit)
       .map(([id]) => id);
 
-    if (sortedIds.length === 0) {
-      return await getPopularProducts(limit);
-    }
+    if (sortedIds.length === 0) return await getPopularProducts(limit);
 
-    const products = await Product.find({
-      _id: { $in: sortedIds }
-    }).lean();
+    // 5. Fetch product details
+    const products = await Product.find({ _id: { $in: sortedIds } }).lean();
 
-    // Maintain order
-    return sortedIds
-      .map(id => products.find(p => p._id.toString() === id))
+    const result = sortedIds
+      .map((id) => products.find((p) => p._id.toString() === id))
       .filter(Boolean);
+
+    // 6. Cache for 2 hours
+    await setCache(cacheKey, result, 7200);
+
+    return result;
   } catch (error) {
-    console.error('Frequently bought together error:', error);
+    console.error('getFrequentlyBoughtTogether error:', error.message);
     return await getPopularProducts(limit);
   }
 };
 
+// ─── Popular Products ─────────────────────────────────────────────────────────
+
 /**
- * Get popular products based on order frequency
+ * Get globally popular products based on total units ordered.
+ * Falls back to newest products if no order data exists.
  */
 export const getPopularProducts = async (limit = 10) => {
+  const cacheKey = `popular:${limit}`;
+
   try {
-    // Aggregate to find most ordered products
+    // 1. Check cache
+    const cached = await getCache(cacheKey);
+    if (cached) return cached;
+
+    // 2. Aggregate most-ordered product IDs
     const popularProductIds = await Order.aggregate([
       { $unwind: '$items' },
       {
         $group: {
           _id: '$items.id',
-          count: { $sum: '$items.quantity' }
-        }
+          count: { $sum: '$items.quantity' },
+        },
       },
       { $sort: { count: -1 } },
-      { $limit: limit }
+      { $limit: limit },
     ]);
 
-    const ids = popularProductIds.map(item => item._id).filter(Boolean);
+    const ids = popularProductIds.map((item) => item._id).filter(Boolean);
 
+    // 3. Fallback: newest products if no orders exist
     if (ids.length === 0) {
-      // Fallback: return newest products
-      return await Product.find()
+      const newest = await Product.find()
         .sort({ createdAt: -1 })
         .limit(limit)
         .lean();
+      await setCache(cacheKey, newest, 3600);
+      return newest;
     }
 
+    // 4. Fetch and reorder by popularity
     const products = await Product.find({ _id: { $in: ids } }).lean();
-
-    // Maintain popularity order
-    return ids
-      .map(id => products.find(p => p._id.toString() === id.toString()))
+    const result = ids
+      .map((id) => products.find((p) => p._id.toString() === id.toString()))
       .filter(Boolean);
+
+    // 5. Cache for 1 hour
+    await setCache(cacheKey, result, 3600);
+
+    return result;
   } catch (error) {
-    console.error('Popular products error:', error);
-    // Final fallback
-    return await Product.find()
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
+    console.error('getPopularProducts error:', error.message);
+    return await Product.find().sort({ createdAt: -1 }).limit(limit).lean();
   }
 };
-
-/**
- * Get recommendations based on product similarity (content-based)
- */
-export const getSimilarProducts = async (productId, limit = 5) => {
-  try {
-    const product = await Product.findById(productId).lean();
-    
-    if (!product) {
-      return [];
-    }
-
-    // Find products in same category with similar price range
-    const priceRange = product.price * 0.3; // ±30% price range
-    
-    const similar = await Product.find({
-      category: product.category,
-      price: {
-        $gte: product.price - priceRange,
-        $lte: product.price + priceRange
-      },
-      _id: { $ne: productId }
-    })
-      .limit(limit)
-      .lean();
-
-    return similar;
-  } catch (error) {
-    console.error('Similar products error:', error);
-    return [];
-  }
-};
-
