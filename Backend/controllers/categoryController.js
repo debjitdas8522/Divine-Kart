@@ -20,7 +20,41 @@ export const getCategoriesController = async (request, response) => {
 };
 
 export const createCategoryController = async (request, response) => {
-    // ... (existing code)
+    try {
+        const { id, name, icon } = request.body;
+
+        if (!id || !name) {
+            return response.status(400).json({
+                message: "Category id and name are required",
+                error: true,
+                success: false
+            });
+        }
+
+        const existing = await Category.findOne({ id });
+        if (existing) {
+            return response.status(409).json({
+                message: "Category with this id already exists",
+                error: true,
+                success: false
+            });
+        }
+
+        const category = await Category.create({ id, name, icon: icon || '' });
+
+        return response.status(201).json({
+            message: "Category created successfully",
+            error: false,
+            success: true,
+            data: category
+        });
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        });
+    }
 };
 
 export const seedCategoriesController = async (request, response) => {

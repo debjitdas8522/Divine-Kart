@@ -9,9 +9,9 @@ cartRouter.use(authMiddleware);
 
 cartRouter.get('/', getCart);
 cartRouter.post('/', validateAddToCart, addToCart);
+cartRouter.put('/clear', clearCart);
+cartRouter.delete('/clear', clearCart);
 cartRouter.put('/:id', validateUpdateCart, updateCartItem);
 cartRouter.delete('/:id', deletecartItem);
-cartRouter.put('/clear', clearCart); 
-cartRouter.delete('/clear', clearCart);
 
 export default cartRouter;

@@ -5,6 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { PRICING_CONFIG } from '../config/pricing.js';
 import Order from '../models/orderModel.js';
 import { Product } from '../models/productModel.js';
+import Store from '../models/storeModel.js';
+import User from '../models/userModel.js';
 
 // Lazy initialization of Razorpay to avoid errors if env vars are missing
 let razorpay = null;
@@ -99,6 +101,37 @@ export const createOrder = async (req, res, next) => {
         const tax = parseFloat((subtotal * PRICING_CONFIG.TAX_RATE).toFixed(2));
         const total = subtotal + tax + Number(shipping || PRICING_CONFIG.DEFAULT_SHIPPING);
 
+        // HYPERLOCAL ROUTING LOGIC
+        let assignedStore = null;
+        let routingMethod = 'Proximity';
+
+        try {
+            const addr = typeof shippingAddress === 'string' ? JSON.parse(shippingAddress) : shippingAddress;
+            
+            if (addr.lng && addr.lat) {
+                // Find nearest approved store
+                assignedStore = await Store.findOne({
+                    isApproved: true,
+                    isActive: true,
+                    location: {
+                        $near: {
+                            $geometry: { type: 'Point', coordinates: [parseFloat(addr.lng), parseFloat(addr.lat)] }
+                        }
+                    }
+                });
+            } else if (addr.pincode) {
+                // Fallback to Pincode routing
+                assignedStore = await Store.findOne({
+                    isApproved: true,
+                    isActive: true,
+                    pincodes: addr.pincode
+                });
+                routingMethod = 'Pincode';
+            }
+        } catch (e) {
+            console.warn("[Checkout Routing] Failed to parse address or find store:", e.message);
+        }
+
         if (total <= 0) {
             return res.status(400).json({
                 success: false,
@@ -144,25 +177,15 @@ export const createOrder = async (req, res, next) => {
                     totalAmount: total,
                     paymentMethod: normalizedPM,
                     paymentStatus: 'Unpaid',
-                    razorpayOrderId: rpOrder.id
+                    razorpayOrderId: rpOrder.id,
+                    store: assignedStore?._id,
+                    routingMethod
                 });
 
                 await newOrder.save();
 
-                // Update user order history
-                await User.findByIdAndUpdate(req.user._id, {
-                    $push: { orderHistory: newOrder._id }
-                });
-
-                // Decrement stock for each ordered product
-                await Product.bulkWrite(
-                    orderItems.map(item => ({
-                        updateOne: {
-                            filter: { _id: item.id },
-                            update: { $inc: { stock: -item.quantity } }
-                        }
-                    }))
-                );
+                // NOTE: Stock decrement and user history update happen in verifyRazorpayPayment
+                // after payment is confirmed — not here, to avoid inventory loss on abandoned payments.
 
                 return res.status(201).json({
                     success: true,
@@ -188,7 +211,7 @@ export const createOrder = async (req, res, next) => {
             }
         }
 
-        // COD ORDER
+        // COD ORDER — save without transaction (replica set not required)
         newOrder = new Order({
             orderId,
             user: req.user._id,
@@ -199,25 +222,32 @@ export const createOrder = async (req, res, next) => {
             tax,
             totalAmount: total,
             paymentMethod: normalizedPM,
-            paymentStatus: 'Paid'
+            paymentStatus: 'Paid',
+            store: assignedStore?._id,
+            routingMethod
         });
 
         await newOrder.save();
 
         // Update user order history
-        await User.findByIdAndUpdate(req.user._id, {
-            $push: { orderHistory: newOrder._id }
-        });
+        await User.findByIdAndUpdate(
+            req.user._id,
+            { $push: { orderHistory: newOrder._id } }
+        );
 
-        // Decrement stock for each ordered product
-        await Product.bulkWrite(
+        // Decrement stock — only if sufficient stock exists (prevents overselling)
+        const bulkResult = await Product.bulkWrite(
             orderItems.map(item => ({
                 updateOne: {
-                    filter: { _id: item.id },
+                    filter: { _id: item.id, stock: { $gte: item.quantity } },
                     update: { $inc: { stock: -item.quantity } }
                 }
             }))
         );
+
+        if (bulkResult.modifiedCount < orderItems.length) {
+            console.warn(`[createOrder] Stock insufficient for some items in order ${orderId}.`);
+        }
 
         res.status(201).json({
             success: true,
@@ -297,6 +327,26 @@ export const verifyRazorpayPayment = async (req, res, next) => {
                 success: false,
                 message: 'Order payment status could not be updated. It may already be paid.'
             });
+        }
+
+        // Now that payment is confirmed, decrement stock and update user order history
+        await User.findByIdAndUpdate(order.user, {
+            $push: { orderHistory: order._id }
+        });
+
+        // Decrement stock — only if sufficient stock exists (prevents overselling)
+        const bulkResult = await Product.bulkWrite(
+            order.items.map(item => ({
+                updateOne: {
+                    filter: { _id: item.id, stock: { $gte: item.quantity } },
+                    update: { $inc: { stock: -item.quantity } }
+                }
+            }))
+        );
+
+        if (bulkResult.modifiedCount < order.items.length) {
+            // Payment succeeded but stock is low — log warning, don't fail the response
+            console.warn(`[verifyRazorpayPayment] Stock insufficient for some items in order ${order.orderId}. Manual review required.`);
         }
 
         res.json({ success: true, order });

@@ -15,9 +15,8 @@ const generateToken = (userId) =>
     jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRE })
 
 
-import { getRedisClient } from '../config/redis.js';
 
-// In-memory store for pending registrations (fallback if Redis is down)
+// In-memory store for pending registrations and email updates
 const pendingRegistrations = new Map();
 
 // Helper to get redis key
@@ -40,7 +39,7 @@ export async function sendLoginOtp(req, res) {
 
     try {
         const user = await User.findOne(query);
-        const otp = String(Math.floor(Math.random() * 9000) + 1000);
+        const otp = String(generatedOtp()); // 6-digit OTP, consistent with forgotPasswordController
         const ttl = 10 * 60; // 10 minutes
 
         if (user) {
@@ -50,14 +49,9 @@ export async function sendLoginOtp(req, res) {
                 loginOtpExpiry: new Date(Date.now() + ttl * 1000),
             });
         } else {
-            // New User: Store in Redis or Memory
-            const redisClient = getRedisClient();
+            // New User: Store in memory until OTP is verified
             const key = getRegKey(identifier);
-            if (redisClient?.isOpen) {
-                await redisClient.setEx(key, ttl, JSON.stringify({ otp }));
-            } else {
-                pendingRegistrations.set(identifier, { otp, expiry: new Date(Date.now() + ttl * 1000) });
-            }
+            pendingRegistrations.set(key, { otp, expiry: new Date(Date.now() + ttl * 1000) });
         }
 
         // Send OTP via email if identifier is email or user has email
@@ -107,34 +101,28 @@ export async function verifyLoginOtp(req, res) {
         } else {
             // Case 2: New User (Auto-Registration)
             let pending = null;
-            const redisClient = getRedisClient();
-            if (redisClient?.isOpen) {
-                const data = await redisClient.get(getRegKey(identifier));
-                if (data) pending = JSON.parse(data);
-            } else {
-                pending = pendingRegistrations.get(identifier);
-                if (pending && new Date() > pending.expiry) {
-                    pendingRegistrations.delete(identifier);
-                    pending = null;
-                }
+            const key = getRegKey(identifier);
+            pending = pendingRegistrations.get(key);
+            if (pending && new Date() > pending.expiry) {
+                pendingRegistrations.delete(key);
+                pending = null;
             }
 
             if (!pending || otp !== pending.otp) {
                 return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
             }
 
-            // Create User
+            // Create User — omit email entirely for phone-only users (sparse index handles uniqueness)
             user = await User.create({
                 name: "New User",
-                email: email ? identifier : `user_${Date.now()}@divinekart.temp`, // Fallback temp email if required for index
+                ...(email ? { email: identifier } : {}),
                 phone: phone ? identifier : undefined,
                 password: 'OTP_AUTH_' + Date.now(),
                 role: 'user'
             });
 
             // Cleanup
-            if (redisClient?.isOpen) await redisClient.del(getRegKey(identifier));
-            else pendingRegistrations.delete(identifier);
+            pendingRegistrations.delete(getRegKey(identifier));
         }
 
         const token = generateToken(user._id);
@@ -202,11 +190,15 @@ export async function forgotPasswordController(request, response) {
             })
         }
 
-        const otp = generatedOtp()
+        const rawOtp = String(generatedOtp());
         const expireTime = new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
 
+        // Store hashed OTP — never store OTPs in plaintext
+        const salt = await bcryptjs.genSalt(10);
+        const hashedOtp = await bcryptjs.hash(rawOtp, salt);
+
         await User.findByIdAndUpdate(user._id, {
-            forgotPasswordOtp: otp,
+            forgotPasswordOtp: hashedOtp,
             forgotPasswordExpiry: expireTime.toISOString()
         })
 
@@ -215,7 +207,7 @@ export async function forgotPasswordController(request, response) {
             subject: "Forgot password from DivineKart",
             html: forgotPasswordTemplate({
                 name: user.name,
-                otp: otp
+                otp: rawOtp // send original OTP to user, store hash in DB
             })
         })
 
@@ -267,7 +259,8 @@ export async function verifyForgotPasswordOtp(request, response) {
             })
         }
 
-        if (otp !== user.forgotPasswordOtp) {
+        const isOtpValid = await bcryptjs.compare(String(otp), user.forgotPasswordOtp);
+        if (!isOtpValid) {
             return response.status(400).json({
                 message: "Invalid otp",
                 error: true,
@@ -448,15 +441,10 @@ export async function requestEmailUpdate(req, res) {
         const otp = String(Math.floor(Math.random() * 900000) + 100000); 
         const ttl = 15 * 60; 
 
-        const redisClient = getRedisClient();
         const key = `email_update_pending:${userId}`;
         const updateData = { newEmail: sanitizedEmail, otp };
 
-        if (redisClient) {
-            await redisClient.setEx(key, ttl, JSON.stringify(updateData));
-        } else {
-            pendingRegistrations.set(key, { ...updateData, expiry: new Date(Date.now() + ttl * 1000) });
-        }
+        pendingRegistrations.set(key, { ...updateData, expiry: new Date(Date.now() + ttl * 1000) });
 
         await sendEmail({
             sendTo: sanitizedEmail,
@@ -478,20 +466,14 @@ export async function verifyEmailUpdate(req, res) {
     const userId = req.userId;
     const { otp } = req.body;
 
-    const redisClient = getRedisClient();
     const key = `email_update_pending:${userId}`;
     let pending = null;
 
     try {
-        if (redisClient) {
-            const data = await redisClient.get(key);
-            if (data) pending = JSON.parse(data);
-        } else {
-            pending = pendingRegistrations.get(key);
-            if (pending && new Date() > pending.expiry) {
-                pendingRegistrations.delete(key);
-                pending = null;
-            }
+        pending = pendingRegistrations.get(key);
+        if (pending && new Date() > pending.expiry) {
+            pendingRegistrations.delete(key);
+            pending = null;
         }
 
         if (!pending) {
@@ -509,8 +491,7 @@ export async function verifyEmailUpdate(req, res) {
 
         await User.findByIdAndUpdate(userId, { email: pending.newEmail });
 
-        if (redisClient) await redisClient.del(key);
-        else pendingRegistrations.delete(key);
+        pendingRegistrations.delete(key);
 
         return res.json({ success: true, message: 'Email updated successfully' });
     } catch (error) {

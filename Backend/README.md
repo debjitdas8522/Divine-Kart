@@ -1,229 +1,283 @@
 # Divine-Kart Backend 🛒
 
-A modern, scalable e-commerce backend API built with Node.js, Express 5.x, and MongoDB. Divine-Kart provides a complete RESTful API for managing products, users, shopping carts, orders, and more, featuring secure OTP-based authentication and high-performance caching.
+A modern, scalable REST API for the Divine-Kart spiritual e-commerce platform, built with **Node.js**, **Express 5.x**, and **MongoDB**. Features OTP-based authentication, Razorpay payments, AI-powered recommendations via Gemini, and Redis caching.
+
+---
 
 ## ✨ Features
 
-- 🔐 **Authentication & Authorization**
-  - OTP-based login and registration for enhanced security
-  - JWT-based authentication with high-security access and refresh tokens
-  - Email verification and updates via OTP
-  - Secure password reset flow
-  - Role-based access control (Admin/User)
+- 🔐 **Auth** — OTP-based login (phone/email), JWT access + refresh tokens, role-based access (Admin/User)
+- 🛍️ **Products & Categories** — Full CRUD, ImageKit uploads, search, pagination, stock tracking
+- 🛒 **Cart** — Persistent cart, quantity sync, cart-to-order transition
+- 📦 **Orders & Payments** — Order creation, Razorpay integration, webhook verification, status tracking
+- 👤 **Users & Addresses** — Profile management, multi-address support, order history
+- 🤖 **AI & Recommendations** — Gemini AI semantic similarity, personalized recs, "Frequently Bought Together"
+- 🚀 **Performance & Security** — Redis caching, Helmet.js, CSRF, rate limiting, Morgan logging
 
-- 🛍️ **Product & Category Management**
-  - Full CRUD operations for products and categories
-  - Advanced image upload integrated with **ImageKit**
-  - Dynamic category seeding and management
-  - Inventory tracking and stock management
-  - Search and pagination support
-
-- 🛒 **Shopping Cart**
-  - Persistent cart state management
-  - Optimized quantity updates and synchronization
-  - Secure cart-to-order transition
-
-- 📦 **Order & Payment**
-  - Streamlined order creation and tracking
-  - Full **Razorpay** payment gateway integration
-  - Secure webhook handling for payment verification
-  - Automatic order status updates
-
-- 👤 **User Profile & Addresses**
-  - Comprehensive profile management
-  - Multi-address support with enable/disable functionality
-  - Order history tracking
-
-- 🎯 **AI & Personalization**
-  - **Gemini AI** integration for semantic product similarity
-  - Personalized product recommendations based on order history
-  - "Frequently Bought Together" collaborative filtering
-  - Redis caching for high-speed recommendation delivery
-
-- 🚀 **Performance & Security**
-  - **Redis** caching layer for optimized data retrieval
-  - **Morgan** logging for API monitoring
-  - **Helmet.js** for secure HTTP headers
-  - **CSRF** protection and Rate Limiting
-  - Centralized error handling and input validation
+---
 
 ## 🛠️ Tech Stack
 
-- **Runtime**: Node.js
-- **Framework**: Express.js 5.x
-- **Database**: MongoDB (Mongoose ODM)
-- **Cache**: Redis
-- **Auth**: JWT (jsonwebtoken) + OTP
-- **File Upload**: Multer + ImageKit
-- **Payment**: Razorpay
-- **Email**: Nodemailer + Resend
-- **Logging**: Morgan
-- **Security**: Helmet, CORS, CSRF, Express-rate-limit
-- **Testing**: Jest + Supertest
+| | |
+|-|-|
+| **Runtime** | Node.js v18+ |
+| **Framework** | Express.js 5.x |
+| **Database** | MongoDB (Mongoose) |
+| **Auth** | JWT + OTP (6-digit, TTL 10 min) |
+| **File Upload** | Multer + ImageKit |
+| **Payments** | Razorpay |
+| **Email** | Nodemailer + Resend |
+| **AI** | Google Gemini AI |
+| **Logging** | Morgan |
+| **Security** | Helmet, CORS, CSRF, express-rate-limit |
+| **Testing** | Jest + Supertest |
+
+---
 
 ## 📋 Prerequisites
 
-- Node.js (v18 or higher)
-- MongoDB (v6 or higher)
-- Redis (v6 or higher)
+- Node.js v18+
+- MongoDB v6+
 - npm or yarn
+
+---
 
 ## 🚀 Getting Started
 
-### Installation
+```bash
+# 1. Clone and navigate
+git clone <repository-url>
+cd Divine-Kart/Backend
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd Divine-Kart/Backend
-   ```
+# 2. Install dependencies
+npm install
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with your credentials (see Environment Variables below)
 
-3. **Configure Environment**
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` with your credentials (see [Environment Variables](#-environment-variables) for details).
+# 4. Start development server
+npm run dev        # nodemon, hot reload → http://localhost:3000
 
-4. **Run the application**
-   ```bash
-   # Development mode
-   npm run dev
+# 5. Start production server
+npm start
+```
 
-   # Production mode
-   npm start
-   ```
+---
 
-## 🐳 Docker Setup
+## 🐳 Docker
 
 ```bash
-# Start development environment
-docker-compose --file docker-compose.dev.yml up -d
+# Development (hot reload)
+docker-compose -f docker-compose.dev.yml up
 
-# Build and start production services
+# Production
 docker-compose up -d
+
+# View logs
+docker-compose logs -f app
 ```
+
+See [DOCKER.md](./DOCKER.md) for the full Docker setup guide.
+
+---
 
 ## 📚 API Endpoints
 
 ### Authentication
-- `POST /api/users/send-login-otp` - Send login/reg OTP
-- `POST /api/users/verify-login-otp` - Verify OTP & Login
-- `GET  /api/users/user-details` - Get profile (Auth)
-- `PUT  /api/users/update-user` - Update profile (Auth)
-- `POST /api/users/request-email-update` - Request email change (Auth)
-- `POST /api/users/verify-email-update` - Verify new email (Auth)
-- `POST /api/users/forgot-password` - Request password reset
-- `POST /api/users/verify-forgot-password-otp` - Verify reset OTP
-- `POST /api/users/reset-password` - Set new password
-- `POST /api/users/refresh-token` - Renew access token
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/users/send-login-otp` | — | Send OTP to phone/email |
+| `POST` | `/api/users/verify-login-otp` | — | Verify OTP & issue tokens |
+| `GET`  | `/api/users/user-details` | ✅ | Get logged-in user profile |
+| `PUT`  | `/api/users/update-user` | ✅ | Update profile info |
+| `POST` | `/api/users/request-email-update` | ✅ | Request email change OTP |
+| `POST` | `/api/users/verify-email-update` | ✅ | Verify & apply new email |
+| `POST` | `/api/users/forgot-password` | — | Request password reset OTP |
+| `POST` | `/api/users/verify-forgot-password-otp` | — | Verify reset OTP |
+| `POST` | `/api/users/reset-password` | — | Set new password |
+| `POST` | `/api/users/refresh-token` | — | Renew access token |
 
 ### Categories
-- `GET  /api/category/get` - List all categories
-- `POST /api/category/create` - Create category (Admin)
-- `POST /api/category/seed` - Seed default categories (Admin)
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET`  | `/api/category/get` | — | List all categories |
+| `POST` | `/api/category/create` | 🔑 Admin | Create category |
+| `POST` | `/api/category/seed` | 🔑 Admin | Seed default categories |
 
 ### Products
-- `GET  /api/products` - List products (Pagination)
-- `GET  /api/products/:id` - Product details
-- `POST /api/products` - Create product (Admin + ImageKit)
-- `PUT  /api/products/:id` - Update product (Admin)
-- `DELETE /api/products/:id` - Delete product (Admin)
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET`  | `/api/products` | — | List products (pagination, filters) |
+| `GET`  | `/api/products/:id` | — | Product details |
+| `GET`  | `/api/products/category/:category` | — | Products by category |
+| `POST` | `/api/products` | 🔑 Admin | Create product |
+| `PUT`  | `/api/products/:id` | 🔑 Admin | Update product |
+| `DELETE` | `/api/products/:id` | 🔑 Admin | Delete product |
 
 ### Cart
-- `GET  /api/cart` - View cart (Auth)
-- `POST /api/cart` - Add/Update item
-- `PUT  /api/cart/:itemId` - Update quantity
-- `DELETE /api/cart/:itemId` - Remove item
-- `DELETE /api/cart` - Clear cart
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET`  | `/api/cart` | ✅ | View cart |
+| `POST` | `/api/cart` | ✅ | Add/Update item |
+| `PUT`  | `/api/cart/:itemId` | ✅ | Update quantity |
+| `DELETE` | `/api/cart/:itemId` | ✅ | Remove item |
+| `DELETE` | `/api/cart` | ✅ | Clear cart |
 
 ### Orders & Payments
-- `POST /api/orders` - Create order (Auth)
-- `POST /api/orders/verify` - Verify Razorpay payment (Auth)
-- `GET  /api/orders` - User order history (Auth)
-- `GET  /api/orders/:id` - Order status/details (Auth)
-- `POST /webhooks/razorpay` - Payment webhook (System)
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/orders` | ✅ | Create order (COD or Razorpay) |
+| `POST` | `/api/orders/verify` | ✅ | Verify Razorpay payment signature |
+| `GET`  | `/api/orders` | ✅ | User order history |
+| `GET`  | `/api/orders/:id` | ✅ | Order details |
+| `PUT`  | `/api/orders/:id` | 🔑 Admin | Update order status |
+| `POST` | `/webhooks/razorpay` | — | Razorpay payment webhook |
 
 ### Addresses
-- `GET  /api/address/get` - List addresses (Auth)
-- `POST /api/address/create` - Add address (Auth)
-- `PUT  /api/address/update` - Update address (Auth)
-- `DELETE /api/address/disable` - Disable address (Auth)
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET`  | `/api/address/get` | ✅ | List saved addresses |
+| `POST` | `/api/address/create` | ✅ | Add new address |
+| `PUT`  | `/api/address/update` | ✅ | Update address |
+| `DELETE` | `/api/address/disable` | ✅ | Remove address |
+
+### Admin (🔑 Admin only)
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET`  | `/api/admin/dashboard` | Sales stats & revenue |
+| `GET`  | `/api/admin/orders` | All orders (paginated) |
+| `PUT`  | `/api/admin/orders/:id` | Update order status |
+| `GET`  | `/api/admin/users` | All registered users |
+| `GET`  | `/api/admin/products` | All products |
+| `POST` | `/api/admin/products` | Create product |
+| `PUT`  | `/api/admin/products/:id` | Update product |
+| `DELETE` | `/api/admin/products/:id` | Delete product |
+
+### AI & Recommendations
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET`  | `/api/recommendations` | ✅ | Personalized recommendations |
+| `GET`  | `/api/recommendations/popular` | — | Popular products |
+| `GET`  | `/api/recommendations/similar/:id` | — | Similar products (Gemini AI) |
+| `GET`  | `/api/recommendations/frequently-bought-together/:id` | — | FBT products |
+| `POST` | `/api/ai/chat` | — | AI chat assistant |
+| `GET`  | `/api/ai/search` | — | AI-powered product search |
+
+### Health
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/healthz` | Health check |
+| `GET` | `/readyz` | Readiness check |
+
+---
 
 ## 📁 Project Structure
 
-### Root Files
-- `app.js` - Main entry point; configures middleware (CORS, CSRF, Helmet), routes, and centralized error handling.
-- `package.json` - Project manifest containing dependencies, scripts, and metadata.
-- `Dockerfile` / `Dockerfile.dev` - Docker configurations for production and development environments.
-- `docker-compose.yml` / `.dev.yml` - Orchestration files for running the API with MongoDB and Redis.
-- `DivineKart.postman_collection.json` - Postman collection for manual API testing.
-- `DOCKER.md` - Comprehensive guide specifically for Docker-based deployments.
+```
+Backend/
+├── app.js                          # Entry point — middleware, routes, error handling
+├── config/
+│   ├── db.js                       # MongoDB connection
+│   ├── redis.js                    # Redis client setup
+│   └── sendmail.js                 # Nodemailer config
+├── controllers/
+│   ├── userController.js           # OTP auth, JWT, profile
+│   ├── productController.js        # Product CRUD + ImageKit
+│   ├── categoryController.js       # Category management
+│   ├── orderController.js          # Orders + Razorpay
+│   ├── addressController.js        # Address management
+│   ├── cartController.js           # Cart state
+│   └── recommendationController.js # AI recommendation engine
+├── middleware/
+│   ├── auth.js                     # JWT verification
+│   ├── adminAuth.js                # Admin-only guard
+│   ├── validation.js               # express-validator rules
+│   └── multer.js                   # File upload config
+├── models/
+│   ├── userModel.js
+│   ├── productModel.js
+│   ├── categoryModel.js
+│   ├── orderModel.js
+│   ├── cartModel.js
+│   └── addressModel.js
+├── routes/
+│   ├── userRoutes.js
+│   ├── productRoutes.js
+│   ├── categoryRoutes.js
+│   ├── orderRoutes.js
+│   ├── addressRoutes.js
+│   ├── cartRoutes.js
+│   └── recommendationRoutes.js
+├── services/
+│   └── recommendationService.js    # Gemini-powered product engine
+├── utils/
+│   ├── generatedOtp.js             # Secure 6-digit OTP generator
+│   ├── generatedAccessToken.js
+│   ├── generatedRefreshToken.js
+│   ├── redisCache.js               # Redis GET/SET helpers
+│   ├── uploadImageClodinary.js     # ImageKit wrapper
+│   ├── loginOtpTemplate.js         # OTP email HTML template
+│   ├── forgotPasswordTemplate.js
+│   └── verifyEmailTemplate.js
+├── Dockerfile
+├── Dockerfile.dev
+├── docker-compose.yml
+├── docker-compose.dev.yml
+├── DOCKER.md
+└── DivineKart.postman_collection.json
+```
 
-### Directories
-- **`config/`** - Core system configurations.
-  - `db.js` - MongoDB connection setup using Mongoose.
-  - `redis.js` - Redis client initialization for caching.
-  - `sendmail.js` - Nodemailer transporter configuration for email services.
-- **`controllers/`** - Request handlers containing business logic.
-  - `userController.js` - Handles OTP auth, JWT tokens, and profile management.
-  - `productController.js` - Manages product CRUD and ImageKit uploads.
-  - `categoryController.js` - Logic for category management and seeding.
-  - `orderController.js` - Processes orders and verifies Razorpay payments.
-  - `addressController.js` - Manages user addresses.
-  - `cartController.js` - Handles shopping cart state.
-- **`middleware/`** - Custom Request/Response interceptors.
-  - `auth.js` - JWT authentication verification.
-  - `adminAuth.js` - Guard for restricted admin-only routes.
-  - `validation.js` - Input validation rules using `express-validator`.
-  - `multer.js` - Configuration for handling file uploads.
-- **`models/`** - Mongoose schemas defining database structure.
-  - `userModel`, `productModel`, `categoryModel`, `orderModel`, `cartModel`, `addressModel`.
-- **`routes/`** - API route definitions mapping URLs to controllers.
-  - Separate files for `users`, `products`, `categories`, `orders`, `addresses`, and `cart`.
-- **`services/`** - Decoupled business services.
-  - `recommendationService.js` - Logic for the personalized product engine.
-- **`utils/`** - Modular helper functions and templates.
-  - `generatedOtp.js` - Secure 6-digit OTP generator.
-  - `uploadImageClodinary.js` - Image processing logic (integrated with ImageKit).
-  - `redisCache.js` - Utility for easy Redis GET/SET operations.
-  - `loginOtpTemplate.js` & others - HTML templates for system emails.
-- **`uploads/`** - Temporary storage for local file processing (gitignored).
+---
 
 ## 📝 Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | Server port (default: 3000) |
-| `MONGO_URI` | MongoDB Connection String |
-| `REDIS_HOST` | Redis Server Host |
-| `SECRET_KEY_ACCESS_TOKEN` | JWT Access Token Secret |
-| `SECRET_KEY_REFRESH_TOKEN` | JWT Refresh Token Secret |
-| `IMAGEKIT_PRIVATE_KEY` | ImageKit Private Key |
-| `RAZORPAY_KEY_ID` | Razorpay Key ID |
-| `RESEND_API` | Resend Email API Key |
+Copy `.env.example` to `.env` and fill in:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `PORT` | Server port (default: `3000`) | No |
+| `NODE_ENV` | `development` \| `production` \| `test` | Yes |
+| `MONGO_URI` | MongoDB connection string | Yes |
+| `SECRET_KEY_ACCESS_TOKEN` | JWT access token signing secret | Yes |
+| `SECRET_KEY_REFRESH_TOKEN` | JWT refresh token signing secret | Yes |
+| `IMAGEKIT_PUBLIC_KEY` | ImageKit public key | Yes |
+| `IMAGEKIT_PRIVATE_KEY` | ImageKit private key | Yes |
+| `IMAGEKIT_URL_ENDPOINT` | ImageKit URL endpoint | Yes |
+| `RAZORPAY_KEY_ID` | Razorpay key ID | Yes |
+| `RAZORPAY_KEY_SECRET` | Razorpay key secret | Yes |
+| `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook secret | Yes |
+| `RESEND_API` | Resend email API key | Yes |
+| `GEMINI_API_KEY` | Google Gemini AI API key | Yes |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins | Yes |
+| `FRONTEND_URL` | Frontend base URL | Yes |
+
+---
 
 ## 🧪 Testing
 
 ```bash
-# Run Jest test suite
-npm test
+npm test                    # Run Jest suite
+npm test -- --watch         # Watch mode
+npm test -- --coverage      # With coverage report
 ```
+
+---
 
 ## 🧹 Code Quality
 
 ```bash
-npm run lint         # Run ESLint
-npm run format       # Prettier formatting
+npm run lint        # ESLint
+npm run lint:fix    # Auto-fix lint issues
+npm run format      # Prettier
 ```
+
+---
 
 ## 📄 License
 
 Licensed under the **ISC License**.
 
 ---
+
 **Author**: Chiranjit Das

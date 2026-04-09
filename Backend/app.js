@@ -7,7 +7,6 @@ import helmet from 'helmet'
 
 import 'dotenv/config'
 import { connectDB } from './config/db.js'
-import { connectRedis } from './config/redis.js'
 
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -20,7 +19,9 @@ import categoryRouter from './routes/categoryRoutes.js'
 import orderRouter from './routes/orderRoutes.js'
 import productRouter from './routes/productRoutes.js'
 import recommendationRouter from './routes/recommendationRoutes.js'
+import storeRouter from './routes/storeRoutes.js'
 import userRouter from './routes/userRoutes.js'
+import aiRouter from './routes/aiRoutes.js'
 
 // Validate required environment variables (skip strict checks during tests)
 if (process.env.NODE_ENV !== 'test') {
@@ -50,12 +51,14 @@ const __dirname = path.dirname(__filename);
 // CORS Configuration
 const defaultAllowedOrigins = [
     'http://localhost:5173',
+    'http://admin.localhost:5173',
     'http://localhost:3000',
     'http://localhost:3001',
 ];
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? [...new Set([
         'http://localhost:5173', // always allow Vite dev server
+        'http://admin.localhost:5173', // always allow Vite admin dev server
         ...process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
     ])]
     : defaultAllowedOrigins;
@@ -121,7 +124,7 @@ const limiter = rateLimit({
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20, // limit each IP to 20 requests per windowMs for auth endpoints
+    max: 5, // limit each IP to 5 requests per 15 min for auth endpoints (OTP brute-force protection)
     message: 'Too many authentication attempts, please try again later.'
 });
 
@@ -130,7 +133,6 @@ app.use(limiter);
 // Only connect to DB when not under test
 if (process.env.NODE_ENV !== 'test') {
     connectDB();
-    connectRedis();
 }
 
 // ROUTES
@@ -146,6 +148,8 @@ app.use('/api/category', categoryRouter)
 app.use('/api/recommendations', recommendationRouter)
 app.use('/api/orders', orderRouter)
 app.use("/api/address", addressRouter)
+app.use("/api/stores", storeRouter)
+app.use('/api/ai', aiRouter)
 
 // Razorpay webhook endpoint (must use raw body for signature verification)
 app.post('/webhooks/razorpay', express.raw({ type: 'application/json' }), handleRazorpayWebhook);

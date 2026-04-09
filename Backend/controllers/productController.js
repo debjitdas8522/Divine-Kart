@@ -29,7 +29,11 @@ export const getAllProducts = async (req, res, next) => {
             });
         }
 
-        const products = await Product.find()
+        const query = {};
+        if (req.query.store) query.store = req.query.store;
+        if (req.query.category) query.category = req.query.category;
+
+        const products = await Product.find(query)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
@@ -81,21 +85,7 @@ export const createProduct = async (req, res, next) => {
 
         const parsedOldPrice = OldPrice !== undefined ? Number(OldPrice) : NaN;
         const parsedPrice = price !== undefined ? Number(price) : NaN;
-        const __now = new Date();
-        const __local = __now.toLocaleString();
-        const __tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const __stamp = `${__local} ${__tz} | ${__now.toISOString()}`;
-        console.log(`[createProduct @ ${__stamp}] Incoming:`, {
-            body: req.body,
-            file: req.file ? {
-                fieldname: req.file.fieldname,
-                originalname: req.file.originalname,
-                filename: req.file.filename,
-                size: req.file.size
-            } : null,
-            derived: { categoryValue, imageUrl, parsedOldPrice, parsedPrice }
-        });
-
+        
         if (!name || !categoryValue || imageUrl === null) {
             return res.status(400).json({
                 message: "Missing required fields",
@@ -118,18 +108,10 @@ export const createProduct = async (req, res, next) => {
             });
         }
 
-        // Validate price constraints
         if (parsedPrice < 0 || parsedOldPrice < 0) {
             return res.status(400).json({
                 success: false,
                 message: "Prices must be non-negative"
-            });
-        }
-
-        if (parsedPrice > parsedOldPrice) {
-            return res.status(400).json({
-                success: false,
-                message: "Price cannot be greater than old price"
             });
         }
 
@@ -142,7 +124,7 @@ export const createProduct = async (req, res, next) => {
             imageUrl,
             stock: isNaN(stock) ? 0 : stock,
         });
-        console.log(`[createProduct] Created:`, { id: createdProduct._id, createdAt: createdProduct.createdAt });
+        
         res.status(201).json({
             success: true,
             product: createdProduct

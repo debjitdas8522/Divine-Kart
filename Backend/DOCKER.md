@@ -13,7 +13,8 @@ This guide will help you set up and run DivineKart using Docker and Docker Compo
 ### 1. Clone the repository and navigate to the project directory
 
 ```bash
-cd DivineKart-
+git clone <repository-url>
+cd Divine-Kart/Backend
 ```
 
 ### 2. Create environment file
@@ -21,32 +22,39 @@ cd DivineKart-
 Create a `.env` file in the root directory based on the following template:
 
 ```env
-# Server Configuration
+# Server
 NODE_ENV=production
 PORT=3000
 
-# MongoDB Configuration
+# MongoDB
 MONGO_ROOT_USERNAME=admin
 MONGO_ROOT_PASSWORD=your-secure-password
 MONGO_DATABASE=divinekart
 MONGO_URI=mongodb://admin:your-secure-password@mongodb:27017/divinekart?authSource=admin
 
-# Redis Configuration
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=your-redis-password
+# JWT
+SECRET_KEY_ACCESS_TOKEN=your-access-token-secret
+SECRET_KEY_REFRESH_TOKEN=your-refresh-token-secret
 
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+# CORS
+ALLOWED_ORIGINS=http://localhost:5173,https://your-frontend.vercel.app
+FRONTEND_URL=http://localhost:5173
 
-# CORS Configuration
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
-FRONTEND_URL=http://localhost:3000
+# ImageKit (file uploads)
+IMAGEKIT_PUBLIC_KEY=your-imagekit-public-key
+IMAGEKIT_PRIVATE_KEY=your-imagekit-private-key
+IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/your-id
 
-# Razorpay Configuration
+# Razorpay
 RAZORPAY_KEY_ID=rzp_test_xxx
 RAZORPAY_KEY_SECRET=your_razorpay_secret
 RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
+
+# Email (Resend)
+RESEND_API=re_your_resend_api_key
+
+# AI (Gemini)
+GEMINI_API_KEY=your-gemini-api-key
 ```
 
 **Important:** Change all default passwords and secrets before deploying to production!
@@ -60,7 +68,6 @@ docker-compose up -d
 This will:
 - Build the Node.js application image
 - Start MongoDB container
-- Start Redis container
 - Start the application container
 
 ### 4. View logs
@@ -72,7 +79,6 @@ docker-compose logs -f
 # View logs for specific service
 docker-compose logs -f app
 docker-compose logs -f mongodb
-docker-compose logs -f redis
 ```
 
 ### 5. Check service status
@@ -84,6 +90,7 @@ docker-compose ps
 ### 6. Access the application
 
 - **API**: http://localhost:3000
+- **Frontend**: http://localhost:5173
 - **Health Check**: http://localhost:3000/healthz
 - **Readiness Check**: http://localhost:3000/readyz
 
@@ -136,15 +143,6 @@ docker-compose exec mongodb mongosh -u admin -p password
 mongosh mongodb://admin:password@localhost:27017/divinekart?authSource=admin
 ```
 
-### View Redis data
-```bash
-# Access Redis CLI
-docker-compose exec redis redis-cli -a redispassword
-
-# Or connect from host
-redis-cli -h localhost -p 6379 -a redispassword
-```
-
 ## Service Details
 
 ### MongoDB
@@ -153,12 +151,6 @@ redis-cli -h localhost -p 6379 -a redispassword
 - **Username**: admin (configurable via `MONGO_ROOT_USERNAME`)
 - **Password**: Set via `MONGO_ROOT_PASSWORD`
 - **Data Volume**: `mongodb_data` (persists data between restarts)
-
-### Redis
-- **Port**: 6379
-- **Password**: Set via `REDIS_PASSWORD`
-- **Data Volume**: `redis_data` (persists data between restarts)
-- **Persistence**: AOF (Append Only File) enabled
 
 ### Application
 - **Port**: 3000 (configurable via `PORT`)
@@ -169,7 +161,7 @@ redis-cli -h localhost -p 6379 -a redispassword
 ## Troubleshooting
 
 ### Port already in use
-If port 3000, 27017, or 6379 is already in use, either:
+If port 3000 or 27017 is already in use, either:
 1. Stop the conflicting service
 2. Change the port mapping in `docker-compose.yml`
 
@@ -182,11 +174,6 @@ If port 3000, 27017, or 6379 is already in use, either:
 1. Verify MongoDB is running: `docker-compose ps mongodb`
 2. Check MongoDB logs: `docker-compose logs mongodb`
 3. Verify `MONGO_URI` in `.env` matches the MongoDB service configuration
-
-### Redis connection errors
-1. Verify Redis is running: `docker-compose ps redis`
-2. Check Redis logs: `docker-compose logs redis`
-3. Verify `REDIS_HOST` and `REDIS_PASSWORD` in `.env`
 
 ### Permission errors (Linux)
 If you encounter permission errors with volumes:

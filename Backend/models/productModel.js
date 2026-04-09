@@ -33,6 +33,20 @@ const productSchema = new mongoose.Schema({
         type: Number,
         default: 0,
         min: 0,
+    },
+    store: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'Store',
+        required: false,
+    },
+    storePrice: {
+        type: Number,
+        min: 0
+    },
+    storeStock: {
+        type: Number,
+        default: 0,
+        min: 0
     }
 },
     {

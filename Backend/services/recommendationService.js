@@ -1,28 +1,14 @@
 import Order from '../models/orderModel.js';
 import { Product } from '../models/productModel.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { redisClient } from '../config/redis.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ─── Cache Helpers ────────────────────────────────────────────────────────────
-
-const getCache = async (key) => {
-  try {
-    const data = await redisClient.get(key);
-    return data ? JSON.parse(data) : null;
-  } catch {
-    return null;
-  }
-};
-
-const setCache = async (key, value, ttlSeconds = 3600) => {
-  try {
-    await redisClient.setEx(key, ttlSeconds, JSON.stringify(value));
-  } catch (err) {
-    console.warn('Redis cache set failed:', err.message);
-  }
-};
+// ─── Cache Helpers (no-op — Redis removed) ───────────────────────────────────
+// eslint-disable-next-line no-unused-vars
+const getCache = async (_key) => null;
+// eslint-disable-next-line no-unused-vars
+const setCache = async (_key, _value, _ttl) => {};
 
 // ─── AI-Powered Similar Products ─────────────────────────────────────────────
 
@@ -53,7 +39,7 @@ export const getSimilarProducts = async (productId, limit = 5) => {
     if (candidates.length === 0) return [];
 
     // 4. Ask Gemini to rank candidates by semantic similarity
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const prompt = `
 You are a product similarity engine for an e-commerce store.

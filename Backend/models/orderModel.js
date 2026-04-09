@@ -20,7 +20,7 @@ const orderSchema = new mongoose.Schema({
     },
     customer: {
         name: { type: String, required: true },
-        email: { type: String, required: true},
+        email: { type: String, default: '' },
         phone: { type: String, required: true, minlength: 10 },
         address: { type: String, required: true },
         notes: { type: String }
@@ -71,8 +71,8 @@ const orderSchema = new mongoose.Schema({
     },
     status: { 
         type: String, 
-        enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'], 
-        default: 'Pending' 
+        enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'], 
+        default: 'pending'
     },
     createdAt: { 
         type: Date, 
@@ -82,6 +82,16 @@ const orderSchema = new mongoose.Schema({
     deliveryDate: { 
         type: Date, 
         index: true 
+    },
+    store: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'Store',
+        index: true
+    },
+    routingMethod: {
+        type: String,
+        enum: ['Proximity', 'Pincode', 'Manual'],
+        default: 'Proximity'
     }
 }, {
     timestamps: true,
