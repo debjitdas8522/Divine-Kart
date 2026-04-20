@@ -1,8 +1,18 @@
-const verifyEmailTemplate = ({name,url})=>{
+const escapeHtml = (str) => String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const verifyEmailTemplate = ({ name, url }) => {
+    const safeName = escapeHtml(name);
+    // Only allow http/https URLs to prevent javascript: injection
+    const safeUrl = /^https?:\/\//i.test(url) ? url : '#';
     return`
-<p>Dear ${name}</p>    
+<p>Dear ${safeName}</p>    
 <p>Thank you for registering with DivineKart.</p>   
-<a href=${url} style="color:black;background:orange;margin-top:10px;padding:20px;display:block">
+<a href="${safeUrl}" style="color:black;background:orange;margin-top:10px;padding:20px;display:block">
     Verify Email
 </a>
 `

@@ -305,7 +305,12 @@ export const verifyRazorpayPayment = async (req, res, next) => {
             .update(`${razorpay_order_id}|${razorpay_payment_id}`)
             .digest('hex');
 
-        if (generatedSignature !== razorpay_signature) {
+        const expectedBuf = Buffer.from(generatedSignature, 'hex');
+        const receivedBuf = Buffer.from(razorpay_signature, 'hex');
+        const isValid = expectedBuf.length === receivedBuf.length &&
+            crypto.timingSafeEqual(expectedBuf, receivedBuf);
+
+        if (!isValid) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid payment signature'

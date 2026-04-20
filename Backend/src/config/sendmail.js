@@ -1,19 +1,35 @@
 import dotenv from 'dotenv';
 import { Resend } from 'resend';
-dotenv.config()
+dotenv.config();
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 let resend;
 
-if(!process.env.RESEND_API){
-    console.warn("⚠️ RESEND_API not found in .env file - Email functionality will be disabled")
+if (!process.env.RESEND_API) {
+    console.warn("⚠️ RESEND_API not found in .env file - Email functionality will be disabled");
 } else {
     resend = new Resend(process.env.RESEND_API);
 }
 
-const sendEmail = async({sendTo, subject, html })=>{
+const sendEmail = async ({ sendTo, subject, html }) => {
     try {
         if (!resend) {
             console.error("❌ Resend is not configured. Add RESEND_API to your .env file");
+            return null;
+        }
+
+        // Validate required fields
+        if (!sendTo || !EMAIL_REGEX.test(sendTo)) {
+            console.error("❌ sendEmail: invalid or missing 'sendTo' address:", sendTo);
+            return null;
+        }
+        if (!subject || typeof subject !== 'string' || subject.trim().length === 0) {
+            console.error("❌ sendEmail: missing 'subject'");
+            return null;
+        }
+        if (!html || typeof html !== 'string' || html.trim().length === 0) {
+            console.error("❌ sendEmail: missing 'html' body");
             return null;
         }
 
@@ -38,11 +54,11 @@ const sendEmail = async({sendTo, subject, html })=>{
             return null;
         }
 
-        return data
+        return data;
     } catch (error) {
         console.error("❌ Email sending failed:", error);
         return null;
     }
-}
+};
 
-export default sendEmail
+export default sendEmail;

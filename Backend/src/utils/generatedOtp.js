@@ -1,4 +1,6 @@
-const generatedOtp = ()=>{
-    return Math.floor(Math.random() * 900000) + 100000  /// 100000 to 999999
-}
-export default generatedOtp
+import { randomInt } from 'crypto';
+
+// Returns a cryptographically secure 6-digit OTP (100000–999999)
+const generatedOtp = () => randomInt(100000, 1000000);
+
+export default generatedOtp;

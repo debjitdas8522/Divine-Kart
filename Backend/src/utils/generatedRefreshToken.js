@@ -1,20 +1,26 @@
-import jwt from 'jsonwebtoken'
-import UserModel from "../models/userModel.js"
+import jwt from 'jsonwebtoken';
+import User from '../models/userModel.js';
 
-const genertedRefreshToken = async(userId)=>{
-    const token = await jwt.sign({ id : userId},
+// Generate a refresh token and persist it against the user record.
+// Throws if the user is not found or the token cannot be saved.
+const generatedRefreshToken = async (userId) => {
+    const token = jwt.sign(
+        { id: userId },
         process.env.SECRET_KEY_REFRESH_TOKEN,
-        { expiresIn : '7d'}
-    )
+        { expiresIn: '7d' }
+    );
 
-    await UserModel.updateOne(
-        { _id : userId},
-        {
-            refresh_token : token
-        }
-    )
+    const updated = await User.findByIdAndUpdate(
+        { _id: userId },
+        { refresh_token: token },
+        { new: true }
+    );
 
-    return token
-}
+    if (!updated) {
+        throw new Error(`[generatedRefreshToken] User not found: ${userId}`);
+    }
 
-export default genertedRefreshToken
+    return token;
+};
+
+export default generatedRefreshToken;

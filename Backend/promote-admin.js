@@ -4,7 +4,7 @@
  * No Mongoose models needed — avoids module resolution issues.
  *
  * Usage:
- *   node promote-admin.js chiranjit809@gmail.com
+ *   node promote-admin.js user@example.com
  */
 
 import 'dotenv/config';

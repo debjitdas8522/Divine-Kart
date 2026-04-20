@@ -2,7 +2,7 @@
   "type": "module",
   "name": "backend",
   "version": "1.0.0",
-  "description": "This is the Quick E-Commaerce (DIVINEKART) Backend",
+  "description": "This is the Quick E-Commerce (DIVINEKART) Backend",
   "license": "ISC",
   "author": "Chiranjit Das",
   "main": "server.js",
