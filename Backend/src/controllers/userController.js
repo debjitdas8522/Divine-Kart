@@ -6,6 +6,7 @@ import User from "../models/userModel.js";
 import forgotPasswordTemplate from '../utils/forgotPasswordTemplate.js';
 import generatedAccessToken from '../utils/generatedAccessToken.js';
 import generatedOtp from '../utils/generatedOtp.js';
+import generatedRefreshToken from '../utils/generatedRefreshToken.js';
 import loginOtpTemplate from '../utils/loginOtpTemplate.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -78,7 +79,6 @@ export async function sendLoginOtp(req, res) {
         return res.status(500).json({ success: false, message: "Server Error" });
     }
 }
-
 // Verify login OTP and issue JWT (Unified - handles Auto-Registration)
 export async function verifyLoginOtp(req, res) {
     const { email, phone, otp } = req.body;
@@ -125,10 +125,31 @@ export async function verifyLoginOtp(req, res) {
             pendingRegistrations.delete(getRegKey(identifier));
         }
 
-        const token = generateToken(user._id);
+        // Generate tokens
+        const accessToken = await generatedAccessToken(user._id);
+        const refreshToken = await generatedRefreshToken(user._id);
+
+        // Cookie options
+        const cookieOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Lax',
+        };
+
+        // Set cookies
+        res.cookie('token', accessToken, {
+            ...cookieOptions,
+            maxAge: 5 * 60 * 60 * 1000 // 5 hours
+        });
+        res.cookie('refreshToken', refreshToken, {
+            ...cookieOptions,
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
         return res.json({
             success: true,
-            token,
+            token: accessToken,
+            refreshToken: refreshToken,
             user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone },
         });
     } catch (error) {

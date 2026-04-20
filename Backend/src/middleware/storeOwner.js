@@ -1,5 +1,23 @@
 import Store from '../models/storeModel.js';
 
+/**
+ * Guard: User must be a vendor (role === 'vendor').
+ * Must come after authMiddleware.
+ */
+export const isVendorRole = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+    if (req.user.role !== 'vendor' && req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Access denied. Vendor privileges required.' });
+    }
+    next();
+};
+
+/**
+ * Guard: Verified store owner — checks that the authenticated vendor owns the target store.
+ * storeId is resolved from params, query, or body.
+ */
 export const checkStoreOwner = async (req, res, next) => {
     try {
         const storeId = req.body?.store || req.query?.store || req.params?.storeId;
@@ -25,3 +43,4 @@ export const checkStoreOwner = async (req, res, next) => {
         return res.status(500).json({ success: false, message: "Internal Server Error" });
     }
 };
+

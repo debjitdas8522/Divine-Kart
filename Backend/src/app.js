@@ -14,6 +14,8 @@ import { fileURLToPath } from 'url'
 import { handleRazorpayWebhook } from './controllers/orderController.js'
 import authMiddleware from './middleware/auth.js'
 import addressRouter from './routes/addressRoutes.js'
+import adminStoreRouter from './routes/adminStoreRoutes.js'
+import aiRouter from './routes/aiRoutes.js'
 import cartRouter from './routes/cartRoutes.js'
 import categoryRouter from './routes/categoryRoutes.js'
 import orderRouter from './routes/orderRoutes.js'
@@ -21,7 +23,6 @@ import productRouter from './routes/productRoutes.js'
 import recommendationRouter from './routes/recommendationRoutes.js'
 import storeRouter from './routes/storeRoutes.js'
 import userRouter from './routes/userRoutes.js'
-import aiRouter from './routes/aiRoutes.js'
 
 // Validate required environment variables (skip strict checks during tests)
 if (process.env.NODE_ENV !== 'test') {
@@ -149,6 +150,7 @@ app.use('/api/recommendations', recommendationRouter)
 app.use('/api/orders', orderRouter)
 app.use("/api/address", addressRouter)
 app.use("/api/stores", storeRouter)
+app.use('/api/admin/stores', adminStoreRouter)
 app.use('/api/ai', aiRouter)
 
 // Razorpay webhook endpoint (must use raw body for signature verification)
@@ -277,12 +279,5 @@ process.on('SIGTERM', async () => {
     await mongoose.default.connection.close();
     process.exit(0);
 });
-
-// LISTEN only when not testing
-if (process.env.NODE_ENV !== 'test') {
-    app.listen(port, () => {
-        console.log(`Server started on http://localhost:${port}`)
-    })
-}
 
 export default app;

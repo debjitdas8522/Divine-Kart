@@ -88,6 +88,10 @@ const orderSchema = new mongoose.Schema({
         ref: 'Store',
         index: true
     },
+    storeNotified: {
+        type: Boolean,
+        default: false
+    },
     routingMethod: {
         type: String,
         enum: ['Proximity', 'Pincode', 'Manual'],

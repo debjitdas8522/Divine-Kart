@@ -1,9 +1,10 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import { generateDescription } from '../controllers/aiProductController.js';
 import { chat } from '../controllers/chatController.js';
 import { smartSearch } from '../controllers/searchController.js';
-import { generateDescription } from '../controllers/aiProductController.js';
 import adminAuthMiddleware from '../middleware/adminAuth.js';
+import { chatRateLimiter, searchRateLimiter } from '../middleware/aiRateLimit.js';
 import User from '../models/userModel.js';
 
 const router = express.Router();
@@ -60,10 +61,10 @@ const requireAuth = async (req, res, next) => {
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 // POST /api/ai/chat — AI shopping assistant (works for guests and logged-in users)
-router.post('/chat', optionalAuth, chat);
+router.post('/chat', chatRateLimiter, optionalAuth, chat);
 
 // GET /api/ai/search?q=... — AI natural language product search (public)
-router.get('/search', smartSearch);
+router.get('/search', searchRateLimiter, smartSearch);
 
 // POST /api/ai/generate-description — Generate product description (Admin only)
 router.post('/generate-description', requireAuth, adminAuthMiddleware, generateDescription);

@@ -1,14 +1,29 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import crypto from 'crypto';
 import { Product } from '../models/productModel.js';
+import { recordQuotaError, retryWithBackoff } from '../utils/geminiQuotaHelper.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ─── Cache Helpers (no-op — Redis removed) ─────────────────────────────────────
-// eslint-disable-next-line no-unused-vars
-const getCache = async (_key) => null;
-// eslint-disable-next-line no-unused-vars
-const setCache = async (_key, _value, _ttl) => {};
+// ─── In-Memory Cache (development/single-instance) ─────────────────────────────
+const memoryCache = new Map();
+const cacheTTL = 60 * 60 * 1000; // 1 hour
+
+const getCache = async (key) => {
+  const cached = memoryCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+  if (cached) memoryCache.delete(key);
+  return null;
+};
+
+const setCache = async (key, value, ttlSeconds = 3600) => {
+  memoryCache.set(key, {
+    value,
+    expiresAt: Date.now() + ttlSeconds * 1000,
+  });
+};
 
 // ─── AI Shopping Chat Assistant ────────────────────────────────────────────────
 
@@ -22,9 +37,12 @@ export const processChatMessage = async (message, userId = null) => {
   const cacheKey = `chat:${msgHash}`;
 
   try {
-    // 1. Check Redis cache — skip for personalised queries
+    // 1. Check in-memory cache first
     const cached = await getCache(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      console.log('✓ Chat response from cache');
+      return cached;
+    }
 
     // 2. Fetch a sample of products to give AI context about the catalog
     const products = await Product.find({})
@@ -64,14 +82,25 @@ Instructions:
 - Always respond in the same language as the user's message.
     `.trim();
 
-    const result = await model.generateContent(prompt);
+    // 4. Call API with retry logic for transient errors
+    let result;
+    try {
+      result = await retryWithBackoff(() => model.generateContent(prompt), 2);
+    } catch (error) {
+      if (error.message?.includes('429') || error.message?.includes('quota')) {
+        recordQuotaError();
+        throw error;
+      }
+      throw error;
+    }
+
     const raw = result.response.text().trim();
 
-    // 4. Safely parse the AI response
+    // 5. Safely parse the AI response
     const cleanJson = raw.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
 
-    // 5. Fetch full product details for matched IDs
+    // 6. Fetch full product details for matched IDs
     let matchedProducts = [];
     if (parsed.productIds && parsed.productIds.length > 0) {
       matchedProducts = await Product.find({ _id: { $in: parsed.productIds } })
@@ -84,12 +113,25 @@ Instructions:
       products: matchedProducts,
     };
 
-    // 6. Cache for 10 minutes
-    await setCache(cacheKey, response, 600);
+    // 7. Cache for 1 hour to reduce API calls
+    await setCache(cacheKey, response, 3600);
 
     return response;
   } catch (error) {
-    console.error('processChatMessage error:', error.message);
+    const errorMessage = error.message || '';
+    
+    // Handle Gemini API quota/rate limit errors
+    if (errorMessage.includes('429') || errorMessage.includes('quota')) {
+      console.error('🚨 Gemini API Quota Error:', errorMessage);
+      const message = 'AI service is temporarily unavailable. Our smart search feature will return in a moment.';
+      return {
+        text: message,
+        products: [],
+        isQuotaError: true,
+      };
+    }
+    
+    console.error('processChatMessage error:', errorMessage);
     return {
       text: "Sorry, I'm having trouble understanding that right now. Try browsing our categories or searching for a product!",
       products: [],

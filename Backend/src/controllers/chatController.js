@@ -33,6 +33,15 @@ export const chat = async (req, res, next) => {
       productCount: result.products.length,
     });
   } catch (error) {
+    // Handle Gemini API quota errors specifically
+    if (error.message?.includes('429') || error.message?.includes('quota')) {
+      console.error('Gemini API quota exceeded:', error.message);
+      return res.status(429).json({
+        success: false,
+        message: 'AI service is temporarily unavailable due to high usage. Please try again in a moment.',
+        isQuotaError: true,
+      });
+    }
     next(error);
   }
 };

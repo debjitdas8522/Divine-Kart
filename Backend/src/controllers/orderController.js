@@ -3,10 +3,53 @@ import mongoose from 'mongoose';
 import Razorpay from 'razorpay';
 import { v4 as uuidv4 } from 'uuid';
 import { PRICING_CONFIG } from '../config/pricing.js';
+import sendEmail from '../config/sendmail.js';
 import Order from '../models/orderModel.js';
 import { Product } from '../models/productModel.js';
 import Store from '../models/storeModel.js';
+import StoreNotification from '../models/storeNotificationModel.js';
 import User from '../models/userModel.js';
+import { resolveStoreForOrder } from '../services/routingService.js';
+import { newOrderNotificationTemplate } from '../utils/storeEmailTemplates.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: Notify store of a new order (fire-and-forget, never blocks checkout)
+// ─────────────────────────────────────────────────────────────────────────────
+async function notifyStoreOfNewOrder(order, store) {
+    if (!store || !store._id) return; // no store was assigned — skip silently
+
+    const storeId = store._id;
+    const message = `New order ${order.orderId} has been routed to your store. Total: ₹${(order.totalAmount || 0).toFixed(2)}.`;
+
+    // 1. Create in-app notification record
+    await StoreNotification.create({
+        store: storeId,
+        order: order._id,
+        message,
+        type: 'NewOrder'
+    });
+
+    // 2. Mark order as store-notified
+    await Order.findByIdAndUpdate(order._id, { storeNotified: true });
+
+    // 3. Send email to store owner
+    let ownerEmail = store.email;
+    if (!ownerEmail && store.owner) {
+        // owner could be populated or just an ID
+        const ownerObj = typeof store.owner === 'object' ? store.owner : await (await import('../models/userModel.js')).default.findById(store.owner).lean();
+        ownerEmail = ownerObj?.email;
+    }
+
+    if (ownerEmail) {
+        await sendEmail({
+            sendTo: ownerEmail,
+            subject: `New Order Received — ${order.orderId} | DivineKart`,
+            html: newOrderNotificationTemplate({ storeName: store.name || 'Your Store', order })
+        });
+    }
+
+    console.log(`[notifyStoreOfNewOrder] Store ${storeId} notified for order ${order.orderId}`);
+}
 
 // Lazy initialization of Razorpay to avoid errors if env vars are missing
 let razorpay = null;
@@ -101,36 +144,8 @@ export const createOrder = async (req, res, next) => {
         const tax = parseFloat((subtotal * PRICING_CONFIG.TAX_RATE).toFixed(2));
         const total = subtotal + tax + Number(shipping || PRICING_CONFIG.DEFAULT_SHIPPING);
 
-        // HYPERLOCAL ROUTING LOGIC
-        let assignedStore = null;
-        let routingMethod = 'Proximity';
-
-        try {
-            const addr = typeof shippingAddress === 'string' ? JSON.parse(shippingAddress) : shippingAddress;
-            
-            if (addr.lng && addr.lat) {
-                // Find nearest approved store
-                assignedStore = await Store.findOne({
-                    isApproved: true,
-                    isActive: true,
-                    location: {
-                        $near: {
-                            $geometry: { type: 'Point', coordinates: [parseFloat(addr.lng), parseFloat(addr.lat)] }
-                        }
-                    }
-                });
-            } else if (addr.pincode) {
-                // Fallback to Pincode routing
-                assignedStore = await Store.findOne({
-                    isApproved: true,
-                    isActive: true,
-                    pincodes: addr.pincode
-                });
-                routingMethod = 'Pincode';
-            }
-        } catch (e) {
-            console.warn("[Checkout Routing] Failed to parse address or find store:", e.message);
-        }
+        // HYPERLOCAL ROUTING
+        const { store: assignedStore, routingMethod } = await resolveStoreForOrder(shippingAddress);
 
         if (total <= 0) {
             return res.status(400).json({
@@ -249,6 +264,11 @@ export const createOrder = async (req, res, next) => {
             console.warn(`[createOrder] Stock insufficient for some items in order ${orderId}.`);
         }
 
+        // Notify the assigned store asynchronously (don't block response)
+        notifyStoreOfNewOrder(newOrder, assignedStore).catch(err =>
+            console.error('[createOrder] Store notification failed:', err.message)
+        );
+
         res.status(201).json({
             success: true,
             order: newOrder,
@@ -347,6 +367,14 @@ export const verifyRazorpayPayment = async (req, res, next) => {
         if (bulkResult.modifiedCount < order.items.length) {
             // Payment succeeded but stock is low — log warning, don't fail the response
             console.warn(`[verifyRazorpayPayment] Stock insufficient for some items in order ${order.orderId}. Manual review required.`);
+        }
+
+        // Notify the assigned store asynchronously
+        if (order.store) {
+            const fullStore = await Store.findById(order.store).populate('owner', 'email name').lean();
+            notifyStoreOfNewOrder(order, fullStore).catch(err =>
+                console.error('[verifyRazorpayPayment] Store notification failed:', err.message)
+            );
         }
 
         res.json({ success: true, order });
