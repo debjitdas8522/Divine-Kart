@@ -14,7 +14,7 @@ const Cart = () => {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center text-center px-4">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center px-4">
         <ShoppingCart className="w-24 h-24 text-gray-200 mb-6" strokeWidth={1} />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty!</h2>
         <p className="text-gray-500 mb-8">Add items to it now.</p>
@@ -29,10 +29,10 @@ const Cart = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-white pb-12">
       <div className="container-custom py-6">
         <h1 className="text-xl font-bold text-gray-800 mb-5">
-          MY SHOPPING CART
+          MY SHOPPING CART ({totalItems} {totalItems === 1 ? 'item' : 'items'})
         </h1>
 
         <div className="grid lg:grid-cols-3 gap-6">

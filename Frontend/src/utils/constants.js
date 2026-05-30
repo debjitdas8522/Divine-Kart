@@ -2,7 +2,7 @@
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // App Info
-export const APP_NAME = import.meta.env.VITE_APP_NAME || 'Blinkit';
+export const APP_NAME = import.meta.env.VITE_APP_NAME || 'DivineKart';
 
 // Routes
 export const ROUTES = {
@@ -21,12 +21,21 @@ export const ROUTES = {
     SEARCH: '/search',
     // Admin routes
     ADMIN: '/admin',
-    ADMIN_PRODUCTS: '/admin/products',
-    ADMIN_PRODUCT_NEW: '/admin/products/new',
-    ADMIN_PRODUCT_EDIT: '/admin/products/edit/:id',
-    ADMIN_ORDERS: '/admin/orders',
-    ADMIN_ORDER_DETAIL: '/admin/orders/:id',
     ADMIN_USERS: '/admin/users',
+    ADMIN_STORES: '/stores',
+    ADMIN_STORE_DETAIL: '/stores/:id',
+};
+
+// Vendor Routes
+export const VENDOR_ROUTES = {
+    LOGIN: '/vendor/login',
+    REGISTER: '/vendor/register',
+    DASHBOARD: '/vendor/dashboard',
+    PROFILE: '/vendor/profile',
+    ORDERS: '/vendor/orders',
+    ORDER_DETAIL: '/vendor/orders/:id',
+    PRODUCTS: '/vendor/products',
+    NOTIFICATIONS: '/vendor/notifications',
 };
 
 // Storage Keys
@@ -35,6 +44,7 @@ export const STORAGE_KEYS = {
     REFRESH_TOKEN: 'refreshToken',
     USER: 'user',
     CART: 'cart',
+    VENDOR: 'vendor-storage',
 };
 
 // Order Status

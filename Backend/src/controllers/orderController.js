@@ -131,12 +131,28 @@ export const createOrder = async (req, res, next) => {
         });
 
         // Build customer object from authenticated user
+        const addrObj = typeof shippingAddress === 'string'
+            ? (() => { try { return JSON.parse(shippingAddress); } catch { return {}; } })()
+            : (shippingAddress || {});
+
         const customer = {
-            name: req.user.name || req.user.username || 'Customer',
-            email: req.user.email || '',
-            phone: req.user.phone || '0000000000',
-            address: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress),
-            notes: notes || ''
+            name:    req.user.name || req.user.username || 'Customer',
+            email:   req.user.email || '',
+            phone:   addrObj.phone || req.user.phone || '0000000000',
+            address: [addrObj.addressLine, addrObj.city, addrObj.state, addrObj.pincode].filter(Boolean).join(', ') || JSON.stringify(addrObj),
+            notes:   notes || ''
+        };
+
+        // Structured shipping address (saved separately for vendor order drawer)
+        const shippingAddressDoc = {
+            name:        req.user.name || req.user.username || 'Customer',
+            phone:       addrObj.phone || req.user.phone || '',
+            addressLine: addrObj.addressLine || '',
+            city:        addrObj.city || '',
+            state:       addrObj.state || '',
+            pincode:     addrObj.pincode || '',
+            lat:         addrObj.lat  ?? undefined,
+            lng:         addrObj.lng  ?? undefined,
         };
 
         // Calculate pricing server-side
@@ -185,6 +201,7 @@ export const createOrder = async (req, res, next) => {
                     orderId,
                     user: req.user._id,
                     customer,
+                    shippingAddress: shippingAddressDoc,
                     items: orderItems,
                     deliveryFee: Number(shipping),
                     subtotal,
@@ -231,6 +248,7 @@ export const createOrder = async (req, res, next) => {
             orderId,
             user: req.user._id,
             customer,
+            shippingAddress: shippingAddressDoc,
             items: orderItems,
             deliveryFee: Number(shipping),
             subtotal,
@@ -480,7 +498,7 @@ export const getOrderById = async (req, res, next) => {
     }
 }
 
-//UPDATE ORDER BY ID
+//UPDATE ORDER BY ID — admin only (enforced by isAdmin middleware on route)
 export const updateOrder = async (req, res, next) => {
     try {
         // Validate ObjectId format
@@ -498,22 +516,6 @@ export const updateOrder = async (req, res, next) => {
                 success: false,
                 message: 'Order not found'
             });
-        }
-
-        // If user is not admin, only allow access to their own orders
-        if (req.user && req.user.role !== 'admin') {
-            if (!order.user) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Access denied'
-                });
-            }
-            if (order.user.toString() !== req.user._id.toString()) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Access denied'
-                });
-            }
         }
 
         const allowed = ['status', 'paymentStatus', 'deliveryDate', 'notes', 'deliveryFee'];

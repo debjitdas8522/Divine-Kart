@@ -8,7 +8,14 @@ const imagekit = new ImageKit({
     urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
 });
 
-const uploadImageClodinary = async (image) => {
+/**
+ * Upload an image buffer to ImageKit.
+ *
+ * @param {Express.Multer.File} image  - Multer file object (buffer in memory)
+ * @param {string} [folder]            - ImageKit folder path (default: /divinekart/products)
+ * @returns {Promise<Object>}          - ImageKit upload result ({ url, fileId, name, ... })
+ */
+const uploadImageClodinary = async (image, folder = '/divinekart/products') => {
     if (!image) {
         throw new Error('No image provided for upload');
     }
@@ -22,15 +29,16 @@ const uploadImageClodinary = async (image) => {
         throw new Error('Image buffer is empty or invalid');
     }
 
-    const fileName = image.originalname || `product_${Date.now()}`;
+    const fileName = image.originalname || `upload_${Date.now()}`;
 
     const uploadResult = await imagekit.upload({
         file: buffer,
         fileName: fileName,
-        folder: '/divinekart/products',
+        folder,
     });
 
     return uploadResult;
 };
 
 export default uploadImageClodinary;
+

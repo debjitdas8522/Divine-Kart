@@ -18,7 +18,12 @@ const useUIStore = create((set) => ({
     openSearch: () => set({ isSearchOpen: true }),
     closeSearch: () => set({ isSearchOpen: false }),
 
-    // Location
+    // Location modal (global trigger so any page can open the location picker)
+    isLocationModalOpen: false,
+    openLocationModal: () => set({ isLocationModalOpen: true }),
+    closeLocationModal: () => set({ isLocationModalOpen: false }),
+
+    // Legacy (kept for backward compat)
     selectedLocation: null,
     setLocation: (location) => set({ selectedLocation: location }),
 }));

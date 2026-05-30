@@ -142,9 +142,11 @@ export const getRecommendations = async (userId, limit = 10) => {
 
     userOrders.forEach((order) => {
       order.items.forEach((item) => {
-        if (item.id) {
-          purchasedProductIds.add(item.id._id.toString());
-          const category = item.id.category;
+        // item.id is populated; may be null if the product was deleted
+        const product = item.id;
+        if (product && product._id) {
+          purchasedProductIds.add(product._id.toString());
+          const category = product.category;
           if (category) {
             const current = preferredCategories.get(category) || 0;
             preferredCategories.set(category, current + item.quantity);
@@ -286,6 +288,7 @@ export const getPopularProducts = async (limit = 10) => {
     // 4. Fetch and reorder by popularity
     const products = await Product.find({ _id: { $in: ids } }).lean();
     const result = ids
+      .filter((id) => id != null)
       .map((id) => products.find((p) => p._id.toString() === id.toString()))
       .filter(Boolean);
 

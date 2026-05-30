@@ -177,14 +177,10 @@ export async function verifyVendorLoginOtp(req, res) {
         const accessToken = await generatedAccessToken(user._id);
         const refreshToken = await generatedRefreshToken(user._id);
 
-        const cookieOptions = {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Lax'
-        };
-
-        res.cookie('token', accessToken, { ...cookieOptions, maxAge: 5 * 60 * 60 * 1000 });
-        res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        // ── Vendor auth uses ONLY localStorage Bearer tokens, never cookies.
+        // Setting cookies here would contaminate the auth middleware,
+        // causing isBearerSession to return false and mixing up sessions.
+        // Tokens are returned in the response body for the frontend to store in localStorage.
 
         // Fetch store info
         const store = await Store.findOne({ owner: user._id }).lean();
@@ -270,6 +266,37 @@ export async function updateMyStore(req, res) {
 }
 
 /**
+ * PATCH /api/stores/me/status
+ * Toggle the store's isActive (online / offline) flag.
+ * Returns { success, isActive, message }
+ */
+export async function toggleStoreStatus(req, res) {
+    try {
+        const store = await Store.findOne({ owner: req.userId });
+        if (!store) {
+            return res.status(404).json({ success: false, message: 'No store found for this account.' });
+        }
+
+        const newStatus = !store.isActive;
+        const updated = await Store.findByIdAndUpdate(
+            store._id,
+            { isActive: newStatus },
+            { new: true }
+        ).lean();
+
+        return res.json({
+            success: true,
+            isActive: updated.isActive,
+            message: updated.isActive ? 'Store is now ONLINE' : 'Store is now OFFLINE',
+            data: updated,
+        });
+    } catch (error) {
+        console.error('[toggleStoreStatus] Error:', error);
+        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+}
+
+/**
  * PUT /api/stores/me/logo
  * Upload store logo using ImageKit (reuses existing uploadImageClodinary utility).
  */
@@ -284,7 +311,9 @@ export async function updateStoreLogo(req, res) {
             return res.status(404).json({ success: false, message: 'No store found for this account.' });
         }
 
-        const uploadResult = await uploadImageClodinary(req.file);
+        // Upload to the store's dedicated logo folder in ImageKit
+        const folder = `/divinekart/stores/${store._id}/logo`;
+        const uploadResult = await uploadImageClodinary(req.file, folder);
         const logoUrl = uploadResult?.url || uploadResult?.secure_url;
 
         if (!logoUrl) {
@@ -293,7 +322,11 @@ export async function updateStoreLogo(req, res) {
 
         const updated = await Store.findByIdAndUpdate(
             store._id,
-            { logo: logoUrl },
+            {
+                logo: logoUrl,
+                // Persist root folder on first upload
+                ...(store.imagekitFolder ? {} : { imagekitFolder: `/divinekart/stores/${store._id}` }),
+            },
             { new: true }
         ).lean();
 
@@ -304,47 +337,134 @@ export async function updateStoreLogo(req, res) {
     }
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC — Store Discovery
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * GET /api/stores/nearby?lat=&lng=&radius=&pincode=
+ * GET /api/stores/nearby?lat=&lng=&radius=&pincode=&city=
  * Find approved + active stores near a customer's location.
+ * Strategy (in order): GPS coords → pincode → city name.
+ * Gracefully handles stores whose coordinates are 0,0 (not set yet).
  */
 export async function getNearbyStores(req, res) {
-    const { lng, lat, radius = 10, pincode } = req.query;
+    const { lng, lat, radius = 10, pincode, city, district } = req.query;
 
-    try {
-        let query = { isApproved: true, isActive: true };
+    const BASE_QUERY = { isApproved: true, isActive: true };
+    const SELECT_FIELDS = 'name description logo address phone email openingHours serviceRadius pincodes location isActive';
 
-        if (lng && lat) {
-            query.location = {
-                $near: {
-                    $geometry: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
-                    $maxDistance: parseFloat(radius) * 1000
-                }
-            };
-        } else if (pincode) {
-            query.$or = [
-                { pincodes: pincode },
-                { 'address.pincode': pincode }
-            ];
-        } else {
-            return res.status(400).json({ success: false, message: 'Provide lat/lng or pincode.' });
+    // Helper: run the same strategy chain with a custom base query
+    async function findByStrategies(baseQuery) {
+        let stores = [];
+
+        // Strategy 1: GPS proximity
+        if (lat && lng && !(parseFloat(lat) === 0 && parseFloat(lng) === 0)) {
+            try {
+                stores = await Store.find({
+                    ...baseQuery,
+                    location: {
+                        $near: {
+                            $geometry: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
+                            $maxDistance: parseFloat(radius) * 1000
+                        }
+                    }
+                }).select(SELECT_FIELDS).limit(20).lean();
+            } catch (geoErr) {
+                console.warn('[getNearbyStores] Geo query failed, falling back:', geoErr.message);
+            }
         }
 
-        const stores = await Store.find(query)
-            .select('name description logo address phone email openingHours serviceRadius pincodes location')
-            .limit(20)
-            .lean();
+        // Strategy 2: Pincode match
+        if (stores.length === 0 && pincode) {
+            stores = await Store.find({
+                ...baseQuery,
+                $or: [{ pincodes: pincode }, { 'address.pincode': pincode }]
+            }).select(SELECT_FIELDS).limit(20).lean();
+        }
 
-        return res.json({ success: true, count: stores.length, data: stores });
+        // Strategy 3: City name match — fuzzy word match
+        if (stores.length === 0 && city) {
+            const cityStr = city.trim();
+
+            // 3a. Full city string as a substring match
+            stores = await Store.find({
+                ...baseQuery,
+                'address.city': { $regex: new RegExp(cityStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }
+            }).select(SELECT_FIELDS).limit(20).lean();
+
+            // 3b. Each significant word (≥4 chars) individually
+            if (stores.length === 0) {
+                const words = cityStr.split(/\s+/).filter(w => w.length >= 4);
+                for (const word of words) {
+                    stores = await Store.find({
+                        ...baseQuery,
+                        'address.city': { $regex: new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }
+                    }).select(SELECT_FIELDS).limit(20).lean();
+                    if (stores.length > 0) break;
+                }
+            }
+        }
+
+        // Strategy 4: District/county match
+        if (stores.length === 0 && district) {
+            const distStr = district.trim();
+
+            // 4a. Full district string as substring match
+            stores = await Store.find({
+                ...baseQuery,
+                'address.city': { $regex: new RegExp(distStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }
+            }).select(SELECT_FIELDS).limit(20).lean();
+
+            // 4b. Each significant word in the district name (≥4 chars)
+            if (stores.length === 0) {
+                const words = distStr.split(/\s+/).filter(w => w.length >= 4);
+                for (const word of words) {
+                    stores = await Store.find({
+                        ...baseQuery,
+                        'address.city': { $regex: new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }
+                    }).select(SELECT_FIELDS).limit(20).lean();
+                    if (stores.length > 0) break;
+                }
+            }
+        }
+
+        return stores;
+    }
+
+    try {
+        if (!lat && !lng && !pincode && !city && !district) {
+            return res.status(400).json({ success: false, message: 'Provide lat/lng, pincode, city, or district.' });
+        }
+
+        // Fetch online (active) stores
+        const onlineStores = await findByStrategies({ isApproved: true, isActive: true });
+
+        // Fetch offline (inactive but approved) stores in the same area
+        const offlineStores = await findByStrategies({ isApproved: true, isActive: false });
+
+        // Merge: online first, then offline — deduplicate by _id
+        const seenIds = new Set(onlineStores.map(s => s._id.toString()));
+        const allStores = [...onlineStores];
+        for (const s of offlineStores) {
+            if (!seenIds.has(s._id.toString())) {
+                allStores.push(s);
+            }
+        }
+
+        return res.json({
+            success: true,
+            count: allStores.length,
+            onlineCount: onlineStores.length,
+            offlineCount: offlineStores.length,
+            data: allStores,
+        });
     } catch (error) {
         console.error('[getNearbyStores] Error:', error);
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 }
+
 
 /**
  * GET /api/stores/:id
@@ -418,11 +538,20 @@ export async function getStoreOrders(req, res) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const { status } = req.query;
 
     try {
+        const query = { store: storeId };
+        if (status) query.status = status;
+
         const [orders, total] = await Promise.all([
-            Order.find({ store: storeId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-            Order.countDocuments({ store: storeId })
+            Order.find(query)
+                .populate('user', 'name email phone')   // user is the ObjectId ref
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Order.countDocuments(query)
         ]);
 
         return res.json({
@@ -435,6 +564,100 @@ export async function getStoreOrders(req, res) {
         return res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 }
+
+/**
+ * GET /api/stores/:storeId/orders/:orderId  (vendor access)
+ * Single order detail for the vendor's store.
+ */
+export async function getStoreOrderById(req, res) {
+    const { storeId, orderId } = req.params;
+    try {
+        const order = await Order.findOne({ _id: orderId, store: storeId })
+            .populate('user', 'name email phone')  // user is the ObjectId ref
+            .lean();
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Order not found in your store.' });
+        }
+
+        return res.json({ success: true, data: order });
+    } catch (error) {
+        console.error('[getStoreOrderById] Error:', error);
+        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+}
+
+/**
+ * PUT /api/stores/:storeId/orders/:orderId  (vendor access)
+ * Vendor updates the status of an order assigned to their store.
+ * Status pipeline: pending → confirmed → processing → shipped → delivered
+ * Vendors may also cancel a pending/confirmed order.
+ */
+const VENDOR_STATUS_PIPELINE = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+
+export async function updateStoreOrderStatus(req, res) {
+    const { storeId, orderId } = req.params;
+    const { status, note } = req.body;
+
+    if (!status) {
+        return res.status(400).json({ success: false, message: 'status is required.' });
+    }
+
+    const allowedStatuses = [...VENDOR_STATUS_PIPELINE, 'cancelled'];
+    if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({
+            success: false,
+            message: `Invalid status. Allowed: ${allowedStatuses.join(', ')}`
+        });
+    }
+
+    try {
+        const order = await Order.findOne({ _id: orderId, store: storeId });
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Order not found in your store.' });
+        }
+
+        // Prevent going backwards in the pipeline
+        if (status !== 'cancelled') {
+            const currentIdx = VENDOR_STATUS_PIPELINE.indexOf(order.status);
+            const newIdx = VENDOR_STATUS_PIPELINE.indexOf(status);
+            if (newIdx <= currentIdx) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot change status from "${order.status}" to "${status}". Orders can only move forward.`
+                });
+            }
+        }
+
+        // Prevent cancelling already-delivered orders
+        if (status === 'cancelled' && order.status === 'delivered') {
+            return res.status(400).json({ success: false, message: 'Delivered orders cannot be cancelled.' });
+        }
+
+        // Use findByIdAndUpdate (bypasses pre-save hook that recalculates totalAmount)
+        const updated = await Order.findByIdAndUpdate(
+            orderId,
+            {
+                $set: {
+                    status,
+                    statusUpdatedAt: new Date(),
+                    ...(note ? { statusNote: note } : {}),
+                }
+            },
+            { new: true, runValidators: false }
+        ).lean();
+
+        return res.json({
+            success: true,
+            message: `Order status updated to "${status}".`,
+            data: updated
+        });
+    } catch (error) {
+        console.error('[updateStoreOrderStatus] Error:', error);
+        return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ADMIN — Store Management

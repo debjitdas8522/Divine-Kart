@@ -2,8 +2,6 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   LayoutDashboard,
   LogOut,
-  Package,
-  ShoppingBag,
   Store,
   Users
 } from 'lucide-react';
@@ -14,8 +12,7 @@ const AdminSidebar = () => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Package, label: 'Products', path: '/products' },
-    { icon: ShoppingBag, label: 'Orders', path: '/orders' },
+    { icon: Store, label: 'Stores', path: '/stores' },
     { icon: Users, label: 'Users', path: '/users' },
   ];
 

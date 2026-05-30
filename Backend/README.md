@@ -65,22 +65,6 @@ npm start
 
 ---
 
-## 🐳 Docker
-
-```bash
-# Development (hot reload)
-docker-compose -f docker-compose.dev.yml up
-
-# Production
-docker-compose up -d
-
-# View logs
-docker-compose logs -f app
-```
-
-See [DOCKER.md](./DOCKER.md) for the full Docker setup guide.
-
----
 
 ## 📚 API Endpoints
 
@@ -145,14 +129,12 @@ See [DOCKER.md](./DOCKER.md) for the full Docker setup guide.
 ### Admin (🔑 Admin only)
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET`  | `/api/admin/dashboard` | Sales stats & revenue |
-| `GET`  | `/api/admin/orders` | All orders (paginated) |
-| `PUT`  | `/api/admin/orders/:id` | Update order status |
+| `GET`  | `/api/admin/stores` | List all stores with filters |
+| `GET`  | `/api/admin/stores/:id` | Get store details |
+| `PUT`  | `/api/admin/stores/:id/approve` | Approve store |
+| `PUT`  | `/api/admin/stores/:id/suspend` | Suspend store |
+| `DELETE` | `/api/admin/stores/:id` | Delete store |
 | `GET`  | `/api/admin/users` | All registered users |
-| `GET`  | `/api/admin/products` | All products |
-| `POST` | `/api/admin/products` | Create product |
-| `PUT`  | `/api/admin/products/:id` | Update product |
-| `DELETE` | `/api/admin/products/:id` | Delete product |
 
 ### AI & Recommendations
 | Method | Path | Auth | Description |
@@ -220,11 +202,6 @@ Backend/
 │   ├── loginOtpTemplate.js         # OTP email HTML template
 │   ├── forgotPasswordTemplate.js
 │   └── verifyEmailTemplate.js
-├── Dockerfile
-├── Dockerfile.dev
-├── docker-compose.yml
-├── docker-compose.dev.yml
-├── DOCKER.md
 └── DivineKart.postman_collection.json
 ```
 

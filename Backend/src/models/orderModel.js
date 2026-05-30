@@ -94,8 +94,27 @@ const orderSchema = new mongoose.Schema({
     },
     routingMethod: {
         type: String,
-        enum: ['Proximity', 'Pincode', 'Manual'],
+        enum: ['Proximity', 'Pincode', 'Manual', 'City', 'Fallback'],
         default: 'Proximity'
+    },
+    // Set by vendor when updating order status
+    statusNote: {
+        type: String,
+        default: ''
+    },
+    statusUpdatedAt: {
+        type: Date
+    },
+    // Structured shipping address (mirrors checkout address fields)
+    shippingAddress: {
+        name:        { type: String, default: '' },
+        phone:       { type: String, default: '' },
+        addressLine: { type: String, default: '' },
+        city:        { type: String, default: '' },
+        state:       { type: String, default: '' },
+        pincode:     { type: String, default: '' },
+        lat:         { type: Number },
+        lng:         { type: Number }
     }
 }, {
     timestamps: true,

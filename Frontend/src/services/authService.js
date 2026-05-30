@@ -117,3 +117,15 @@ export const updateProfile = async (profileData) => {
     const { data } = await api.put('/api/users/update-user', profileData);
     return data;
 };
+
+// Request email update - sends OTP to the new email
+export const requestEmailUpdate = async (newEmail) => {
+    const { data } = await api.post('/api/users/request-email-update', { newEmail });
+    return data;
+};
+
+// Verify email update OTP - updates email in DB
+export const verifyEmailUpdate = async (otp) => {
+    const { data } = await api.post('/api/users/verify-email-update', { otp });
+    return data;
+};

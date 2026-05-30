@@ -189,3 +189,541 @@ textarea:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ═══════════════════════════════════════════
+   PROFILE PAGE STYLES
+   ═══════════════════════════════════════════ */
+
+/* Active Member Badge */
+.profile-active-badge {
+  background: linear-gradient(135deg, #0C831F, #10a328) !important;
+  color: white !important;
+  padding: 0.4rem 1rem !important;
+  font-size: 0.8rem !important;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(12, 131, 31, 0.25);
+}
+
+/* ──── Sidebar Card ──── */
+.profile-sidebar-card {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.profile-sidebar-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.profile-sidebar-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0C831F;
+  margin-bottom: 0.25rem;
+}
+
+.profile-sidebar-subtitle {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.profile-sidebar-nav {
+  padding: 0.5rem 0;
+}
+
+.profile-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #374151;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.profile-sidebar-link:hover {
+  background: #f9fafb;
+  color: #0C831F;
+}
+
+.profile-sidebar-link--active {
+  background: linear-gradient(90deg, #0C831F, #10a328);
+  color: white !important;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  margin: 0.25rem 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.profile-sidebar-link--active:hover {
+  background: linear-gradient(90deg, #0A6B19, #0C831F);
+  color: white;
+}
+
+.profile-sidebar-link--danger {
+  color: #dc2626;
+}
+
+.profile-sidebar-link--danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* ──── Profile Info Card ──── */
+.profile-info-card {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.profile-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-avatar {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #E8F5E8, #C8E6C9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #0C831F;
+  box-shadow: 0 3px 12px rgba(12, 131, 31, 0.15);
+}
+
+.profile-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.profile-user-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.profile-user-email {
+  font-size: 0.82rem;
+  color: #6b7280;
+  word-break: break-all;
+}
+
+.profile-user-phone {
+  font-size: 0.82rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.profile-add-email-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: #0C831F;
+  font-weight: 600;
+  border: 1px dashed #0C831F;
+  border-radius: 2rem;
+  padding: 0.3rem 0.85rem;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-add-email-btn:hover {
+  background: #E8F5E8;
+}
+
+/* ──── Stats Card ──── */
+.profile-stats-card {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.profile-stats-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 1.25rem;
+}
+
+.profile-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-stat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: #f9fafb;
+  transition: background 0.2s;
+}
+
+.profile-stat-item:hover {
+  background: #f3f4f6;
+}
+
+.profile-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.9rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.profile-stat-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.profile-stat-badge--primary {
+  background: #0C831F;
+  color: white;
+}
+
+.profile-stat-badge--default {
+  background: #0C831F;
+  color: white;
+}
+
+/* ──── Section Card ──── */
+.profile-section-card {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.profile-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.profile-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-view-all-btn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0C831F;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.profile-view-all-btn:hover {
+  color: #0A6B19;
+  text-decoration: underline;
+}
+
+/* ──── Address Cards ──── */
+.profile-address-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.profile-address-card:hover {
+  border-color: #0C831F;
+  box-shadow: 0 4px 12px rgba(12, 131, 31, 0.08);
+}
+
+.profile-address-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.profile-address-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-address-type-badge {
+  background: #0C831F;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.25rem;
+  letter-spacing: 0.04em;
+}
+
+.profile-address-default-badge {
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.profile-address-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.profile-address-action-btn {
+  padding: 0.35rem;
+  border-radius: 0.375rem;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-address-action-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.profile-address-action-btn--danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.profile-address-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.profile-address-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.profile-address-line {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.profile-address-city {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.profile-address-phone {
+  font-size: 0.82rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+/* Add Address Card */
+.profile-add-address-card {
+  border: 2px dashed #d1d5db;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 10rem;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-add-address-card:hover {
+  border-color: #0C831F;
+  background: #f0fdf4;
+}
+
+.profile-add-address-card:hover .text-gray-400 {
+  color: #0C831F;
+}
+
+/* ──── Order Cards ──── */
+.profile-order-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-order-card:hover {
+  border-color: #0C831F;
+  box-shadow: 0 2px 8px rgba(12, 131, 31, 0.08);
+}
+
+.profile-order-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.profile-order-id {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.profile-order-date {
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+
+.profile-order-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-order-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* ──── Empty Orders ──── */
+.profile-empty-orders {
+  text-align: center;
+  padding: 2.5rem 1rem;
+}
+
+.profile-empty-orders-icon {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.profile-empty-orders-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.35rem;
+}
+
+.profile-empty-orders-text {
+  font-size: 0.85rem;
+  color: #6b7280;
+  max-width: 20rem;
+  margin: 0 auto;
+}
+
+/* ──── Edit Profile Form – Email Field ──── */
+.profile-email-field {
+  margin-top: 0.25rem;
+}
+
+.profile-email-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: #f9fafb;
+}
+
+.profile-email-text {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.profile-email-change-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0C831F;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.profile-email-change-btn:hover {
+  color: #0A6B19;
+  text-decoration: underline;
+}
+
+/* ──── Responsive ──── */
+@media (max-width: 1023px) {
+  .profile-sidebar-link--active {
+    margin: 0.15rem 0.35rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .profile-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .profile-order-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .profile-order-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

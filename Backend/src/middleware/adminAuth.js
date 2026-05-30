@@ -1,3 +1,5 @@
+import jwt from "jsonwebtoken";
+
 export default async function adminAuthMiddleware(req, res, next) {
     try {
         // Check if user exists on request (should be populated by authMiddleware)

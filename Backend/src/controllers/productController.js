@@ -30,16 +30,28 @@ export const getAllProducts = async (req, res, next) => {
         }
 
         const query = {};
+
+        // Single store filter
         if (req.query.store) query.store = req.query.store;
+
+        // Multiple store IDs — used by the hyperlocal Home feed:
+        // ?storeIds=id1,id2,id3  →  only products from those stores
+        if (req.query.storeIds) {
+            const ids = req.query.storeIds.split(',').map(s => s.trim()).filter(Boolean);
+            if (ids.length > 0) query.store = { $in: ids };
+        }
+
         if (req.query.category) query.category = req.query.category;
 
-        const products = await Product.find(query)
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean();
+        const [products, total] = await Promise.all([
+            Product.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Product.countDocuments(query),
+        ]);
 
-        const total = await Product.countDocuments();
         const totalPages = Math.ceil(total / limit);
 
         res.json({

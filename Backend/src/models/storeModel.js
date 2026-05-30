@@ -66,7 +66,16 @@ const storeSchema = new mongoose.Schema({
         open: String,
         close: String,
         days: [String]
-    }
+    },
+
+    // ImageKit folder path for this store's assets.
+    // Pattern: /divinekart/stores/{_id}/
+    // Sub-folders: products/  logo/
+    // Auto-set on first upload; useful for bulk operations (e.g. delete store → delete folder).
+    imagekitFolder: {
+        type: String,
+        default: '',
+    },
 }, { timestamps: true });
 
 storeSchema.index({ location: '2dsphere' });
