@@ -53,6 +53,7 @@ const __dirname = path.dirname(__filename);
 const defaultAllowedOrigins = [
     'http://localhost:5173',
     'http://admin.localhost:5173',
+    'http://vendor.localhost:5173',
     'http://localhost:3000',
     'http://localhost:3001',
 ];
@@ -60,6 +61,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? [...new Set([
         'http://localhost:5173', // always allow Vite dev server
         'http://admin.localhost:5173', // always allow Vite admin dev server
+        'http://vendor.localhost:5173', // always allow Vite vendor dev server
         ...process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
     ])]
     : defaultAllowedOrigins;
@@ -265,19 +267,5 @@ app.use((error, req, res, next) => {
     });
 });
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-    console.log('\n🛑 Received SIGINT. Graceful shutdown...');
-    const mongoose = await import('mongoose');
-    await mongoose.default.connection.close();
-    process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-    console.log('\n🛑 Received SIGTERM. Graceful shutdown...');
-    const mongoose = await import('mongoose');
-    await mongoose.default.connection.close();
-    process.exit(0);
-});
 
 export default app;

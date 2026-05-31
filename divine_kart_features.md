@@ -54,7 +54,7 @@
 
 ---
 
-## 🏪 Vendor Portal (Standalone — localhost:5174)
+## 🏪 Vendor Portal (Subdomain — vendor.localhost:5173)
 
 ### Auth
 - [x] Vendor registration (store profile + contact)

@@ -2,7 +2,6 @@ import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
 
 // Generate a refresh token and persist it against the user record.
-// Throws if the user is not found or the token cannot be saved.
 const generatedRefreshToken = async (userId) => {
     const token = jwt.sign(
         { id: userId },
@@ -11,8 +10,8 @@ const generatedRefreshToken = async (userId) => {
     );
 
     const updated = await User.findByIdAndUpdate(
-        { _id: userId },
-        { refresh_token: token },
+        userId,
+        { refreshToken: token },
         { new: true }
     );
 

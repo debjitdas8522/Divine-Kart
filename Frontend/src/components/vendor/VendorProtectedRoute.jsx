@@ -3,7 +3,7 @@ import { VENDOR_ROUTES } from '@/utils/constants';
 import { Navigate, Outlet } from 'react-router-dom';
 
 /**
- * VendorProtectedRoute — guards all /vendor/* pages that require a logged-in vendor.
+ * VendorProtectedRoute — guards all vendor subdomain pages that require a logged-in vendor.
  * Checks Zustand isVendor flag AND the presence of vendor-token in localStorage.
  */
 const VendorProtectedRoute = () => {

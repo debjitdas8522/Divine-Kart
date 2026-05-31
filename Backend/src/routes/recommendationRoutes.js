@@ -20,6 +20,7 @@ const optionalAuth = async (req, res, next) => {
 
   if (!token) {
     req.user = null;
+    req.userId = null;
     return next();
   }
 

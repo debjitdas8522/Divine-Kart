@@ -17,7 +17,7 @@ Admin Panel        →  New "Stores" section alongside existing Products / Order
 ## User Review Required
 
 > [!IMPORTANT]
-> The vendor dashboard will be served at the **same origin** (`localhost:5173`) under path `/vendor/*`, not a new subdomain. The existing customer + admin separation (via `admin.localhost:5173`) is preserved.
+> The vendor dashboard will be served at the **`vendor.` subdomain** (e.g. `vendor.localhost:5173`), matching the admin subdomain pattern. All vendor routes are root-relative (no `/vendor` prefix).
 
 > [!WARNING]
 > `Checkout.jsx` currently sends `shippingAddress: selectedAddressId` (a MongoDB ObjectId string). The backend routing service needs `{ lat, lng, pincode }`. We must **enrich** the address object before sending. This affects the existing checkout flow — it's a one-line change but is a breaking fix.
@@ -63,17 +63,17 @@ Zustand store for vendor session:
 ```
 Persisted to `localStorage` under key `vendor-storage`.
 
-### [MODIFY] `src/routes.jsx`
-Add lazy-loaded vendor routes under `/vendor/*`:
+### [NEW] `src/vendorRoutes.jsx`
+Add lazy-loaded vendor routes on the vendor subdomain:
 ```
-/vendor/login          → VendorLogin
-/vendor/register       → VendorRegister
-/vendor/dashboard      → VendorDashboard (protected)
-/vendor/profile        → VendorProfile (protected)
-/vendor/orders         → VendorOrders (protected)
-/vendor/notifications  → VendorNotifications (protected)
+/login          → VendorLogin
+/register       → VendorRegister
+/dashboard      → VendorDashboard (protected)
+/profile        → VendorProfile (protected)
+/orders         → VendorOrders (protected)
+/notifications  → VendorNotifications (protected)
 ```
-New `VendorProtectedRoute` component wraps all `/vendor/*` protected pages.
+New `VendorProtectedRoute` component wraps protected pages.
 
 ---
 
@@ -204,12 +204,12 @@ Polls `getMyNotifications?unreadOnly=true` every 30 seconds.
 ### [NEW] `src/utils/constants.js` additions
 ```js
 VENDOR_ROUTES = {
-  LOGIN: '/vendor/login',
-  REGISTER: '/vendor/register',
-  DASHBOARD: '/vendor/dashboard',
-  PROFILE: '/vendor/profile',
-  ORDERS: '/vendor/orders',
-  NOTIFICATIONS: '/vendor/notifications',
+  LOGIN: '/login',
+  REGISTER: '/register',
+  DASHBOARD: '/dashboard',
+  PROFILE: '/profile',
+  ORDERS: '/orders',
+  NOTIFICATIONS: '/notifications',
 }
 ```
 
@@ -250,8 +250,8 @@ VENDOR_ROUTES = {
 - Checkout sends enriched address → backend returns `store` in order ✅
 
 ### Manual Browser Checks
-1. `localhost:5173/vendor/register` — form submits, shows "pending" message
-2. `localhost:5173/vendor/login` — OTP flow, redirects to dashboard
+1. `vendor.localhost:5173/register` — form submits, shows "pending" message
+2. `vendor.localhost:5173/login` — OTP flow, redirects to dashboard
 3. Vendor dashboard shows store status + recent orders
 4. `admin.localhost:5173/stores` — pending store appears, approve button works
 5. Place an order → `OrderDetail` shows "Fulfilled by [Store Name]"

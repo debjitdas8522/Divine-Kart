@@ -92,7 +92,7 @@ export const deleteMyProduct = (productId) =>
  */
 export const getNearbyStores = (lat, lng, radius = 10, pincode, city, district) => {
     const params = {};
-    if (lat && lng) {
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
         params.lat = lat;
         params.lng = lng;
         params.radius = radius;

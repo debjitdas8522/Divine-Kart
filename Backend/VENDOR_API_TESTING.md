@@ -1,6 +1,7 @@
 # Divine-Kart Vendor API — Postman Testing Guide
 
-> **Base URL:** `http://localhost:3000`  
+> **Base URL:** `http://localhost:3000` (Backend API)  
+> **Frontend URL:** `http://vendor.localhost:5173` (Vendor Portal Subdomain)  
 > **All responses are JSON.** Set `Content-Type: application/json` on all POST/PUT requests unless uploading a file (then use `form-data`).
 
 ---

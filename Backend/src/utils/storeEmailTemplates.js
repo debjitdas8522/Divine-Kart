@@ -1,4 +1,14 @@
 /**
+ * HTML escaping helper for template interpolation safety
+ */
+const escapeHtml = (str) => String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+/**
  * Email template: Store Approved
  * Sent to the vendor when admin approves their store registration.
  */
@@ -82,12 +92,15 @@ export function storeRejectedTemplate({ storeName, ownerName, reason = '' }) {
  * Sent to the store owner when a new order is routed to their store.
  */
 export function newOrderNotificationTemplate({ storeName, order }) {
-    const itemsHtml = (order.items || []).map(item => `
+    const itemsHtml = (order.items || []).map(item => {
+      const safePrice = typeof item.price === 'number' ? item.price.toFixed(2) : '0.00';
+      return `
       <tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">${item.name}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">${escapeHtml(item.name)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">₹${item.price.toFixed(2)}</td>
-      </tr>`).join('');
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;">₹${safePrice}</td>
+      </tr>`;
+    }).join('');
 
     return `
     <!DOCTYPE html>
@@ -146,7 +159,7 @@ export function newOrderNotificationTemplate({ storeName, order }) {
             📍 ${order.customer?.address || 'N/A'}
           </div>
 
-          <p>Payment Method: <strong>${order.paymentMethod}</strong></p>
+          <p>Payment Method: <strong>${escapeHtml(order.paymentMethod || 'N/A')}</strong></p>
           <p>Please ensure the order is ready for pickup by our delivery team. For any issues, contact the DivineKart admin.</p>
           <p>– Team DivineKart</p>
         </div>

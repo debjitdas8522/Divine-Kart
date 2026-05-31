@@ -86,6 +86,25 @@ export const createMyProduct = async (req, res, next) => {
         const { name, description, category, price, OldPrice } = req.body;
         const stock = req.body.stock !== undefined ? Number(req.body.stock) : 0;
 
+        // Validate required fields BEFORE image upload to prevent orphaned uploads
+        if (!name || !category) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields',
+                details: {
+                    name:     !name     ? 'name is required'     : undefined,
+                    category: !category ? 'category is required' : undefined,
+                },
+            });
+        }
+
+        const parsedPrice    = Number(price);
+        const parsedOldPrice = OldPrice !== undefined ? Number(OldPrice) : parsedPrice;
+
+        if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+            return res.status(400).json({ success: false, message: 'price must be a non-negative number' });
+        }
+
         // Upload image to vendor's store folder in ImageKit
         let imageUrl = req.body.imageUrl ?? null;
         if (req.file) {
@@ -106,28 +125,9 @@ export const createMyProduct = async (req, res, next) => {
             }
         }
 
-        // Validate required fields
-        if (!name || !category) {
-            return res.status(400).json({
-                success: false,
-                message: 'Missing required fields',
-                details: {
-                    name:     !name     ? 'name is required'     : undefined,
-                    category: !category ? 'category is required' : undefined,
-                },
-            });
-        }
-
-        const parsedPrice    = Number(price);
-        const parsedOldPrice = OldPrice !== undefined ? Number(OldPrice) : parsedPrice;
-
-        if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
-            return res.status(400).json({ success: false, message: 'price must be a non-negative number' });
-        }
-
         const product = await Product.create({
             name:        name.trim(),
-            description: description?.trim() ?? '',
+            description: typeof description === 'string' ? description.trim() : '',
             category,
             price:       parsedPrice,
             OldPrice:    parsedOldPrice,
@@ -182,7 +182,7 @@ export const updateMyProduct = async (req, res, next) => {
             product._id,
             {
                 ...(name                                                    && { name: name.trim() }),
-                ...(description !== undefined                               && { description: description.trim() }),
+                ...(typeof description === 'string'                             && { description: description.trim() }),
                 ...(category                                                && { category }),
                 ...(parsedPrice    !== undefined && !isNaN(parsedPrice)    && { price: parsedPrice,    storePrice: parsedPrice }),
                 ...(parsedOldPrice !== undefined && !isNaN(parsedOldPrice) && { OldPrice: parsedOldPrice }),

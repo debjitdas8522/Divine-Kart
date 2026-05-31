@@ -67,7 +67,7 @@ npm run dev               # starts on http://localhost:5173
 - Role-gated: only authenticated Admin users can access
 
 ### 🏪 Vendor Portal
-- Served on `vendor.` subdomain (e.g. `vendor.localhost:5174`)
+- Served on `vendor.` subdomain (e.g. `vendor.localhost:5173`)
 - **Dashboard** — Vendor sales, revenue, and active orders
 - **Products** — Local store inventory management (CRUD + ImageKit)
 - **Orders** — Manage store-specific orders (Status tracking)

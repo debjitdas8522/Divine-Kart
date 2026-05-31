@@ -21,7 +21,10 @@ const sendEmail = async ({ sendTo, subject, html }) => {
 
         // Validate required fields
         if (!sendTo || !EMAIL_REGEX.test(sendTo)) {
-            console.error("❌ sendEmail: invalid or missing 'sendTo' address:", sendTo);
+            const redacted = sendTo
+                ? sendTo.replace(/^(.{1,2})[^@]*(@.*)$/, '$1***$2')
+                : '<empty>';
+            console.error("❌ sendEmail: invalid or missing 'sendTo' address:", redacted);
             return null;
         }
         if (!subject || typeof subject !== 'string' || subject.trim().length === 0) {

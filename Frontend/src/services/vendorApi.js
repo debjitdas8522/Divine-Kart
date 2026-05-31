@@ -38,7 +38,7 @@ vendorApi.interceptors.response.use(
             error.response?.data?.vendorTokenExpired
         ) {
             localStorage.removeItem('vendor-token');
-            window.location.href = '/vendor/login';
+            window.location.href = '/login';
         }
         return Promise.reject(error);
     }

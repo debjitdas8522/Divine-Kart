@@ -1,5 +1,5 @@
 import Spinner from '@/components/ui/Spinner';
-import { ROUTES, VENDOR_ROUTES } from '@/utils/constants';
+import { ROUTES } from '@/utils/constants';
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
@@ -8,10 +8,6 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import MainLayout from '@/components/layout/MainLayout';
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
-
-// Vendor auth & layout
-import VendorProtectedRoute from '@/components/vendor/VendorProtectedRoute';
-import VendorLayout from '@/components/vendor/VendorLayout';
 
 // Lazy-loaded main pages
 const ProductDetail  = lazy(() => import('@/pages/ProductDetail'));
@@ -24,16 +20,6 @@ const OrderDetail    = lazy(() => import('@/pages/OrderDetail'));
 const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'));
 const VerifyOtp      = lazy(() => import('@/pages/VerifyOtp'));
 const ResetPassword  = lazy(() => import('@/pages/ResetPassword'));
-
-// Lazy-loaded vendor pages
-const VendorLogin         = lazy(() => import('@/pages/vendor/VendorLogin'));
-const VendorRegister      = lazy(() => import('@/pages/vendor/VendorRegister'));
-const VendorDashboard     = lazy(() => import('@/pages/vendor/VendorDashboard'));
-const VendorOrders        = lazy(() => import('@/pages/vendor/VendorOrders'));
-const VendorProducts      = lazy(() => import('@/pages/vendor/VendorProducts'));
-const VendorProfile       = lazy(() => import('@/pages/vendor/VendorProfile'));
-const VendorNotifications = lazy(() => import('@/pages/vendor/VendorNotifications'));
-const VendorOrderDetail  = lazy(() => import('@/pages/vendor/VendorOrderDetail'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -50,22 +36,6 @@ const AppRoutes = () => {
         <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
         <Route path={ROUTES.VERIFY_OTP}     element={<VerifyOtp />} />
         <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
-
-        {/* ── Vendor public routes ────────────────────────────────── */}
-        <Route path={VENDOR_ROUTES.LOGIN}    element={<VendorLogin />} />
-        <Route path={VENDOR_ROUTES.REGISTER} element={<VendorRegister />} />
-
-        {/* ── Vendor protected routes (sidebar layout) ────────────── */}
-        <Route element={<VendorProtectedRoute />}>
-          <Route element={<VendorLayout />}>
-            <Route path={VENDOR_ROUTES.DASHBOARD}     element={<VendorDashboard />} />
-            <Route path={VENDOR_ROUTES.ORDERS}        element={<VendorOrders />} />
-            <Route path={VENDOR_ROUTES.ORDER_DETAIL}  element={<VendorOrderDetail />} />
-            <Route path={VENDOR_ROUTES.PRODUCTS}      element={<VendorProducts />} />
-            <Route path={VENDOR_ROUTES.PROFILE}       element={<VendorProfile />} />
-            <Route path={VENDOR_ROUTES.NOTIFICATIONS} element={<VendorNotifications />} />
-          </Route>
-        </Route>
 
         {/* ── Customer routes with MainLayout ────────────────────── */}
         <Route element={<MainLayout />}>

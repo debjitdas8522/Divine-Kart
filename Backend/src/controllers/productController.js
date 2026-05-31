@@ -127,6 +127,13 @@ export const createProduct = async (req, res, next) => {
             });
         }
 
+        if (parsedPrice > parsedOldPrice) {
+            return res.status(400).json({
+                success: false,
+                message: `Price (${parsedPrice}) cannot be greater than OldPrice (${parsedOldPrice})`
+            });
+        }
+
         const createdProduct = await Product.create({
             name,
             description,
@@ -168,8 +175,17 @@ export const updateProduct = async (req, res, next) => {
         const parsedOldPrice = OldPrice !== undefined ? Number(OldPrice) : undefined;
         const parsedPrice = price !== undefined ? Number(price) : undefined;
 
-        if (parsedPrice !== undefined && parsedOldPrice !== undefined && parsedPrice > parsedOldPrice) {
-            return res.status(400).json({ success: false, message: 'Price cannot be greater than OldPrice' });
+        // Load existing product to validate price against stored/updated OldPrice
+        const existingProduct = await Product.findById(req.params.id);
+        if (!existingProduct) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+
+        const effectivePrice = parsedPrice !== undefined ? parsedPrice : existingProduct.price;
+        const effectiveOldPrice = parsedOldPrice !== undefined ? parsedOldPrice : existingProduct.OldPrice;
+
+        if (effectivePrice > effectiveOldPrice) {
+            return res.status(400).json({ success: false, message: `Price (${effectivePrice}) cannot be greater than OldPrice (${effectiveOldPrice})` });
         }
 
         const updated = await Product.findByIdAndUpdate(
@@ -185,10 +201,6 @@ export const updateProduct = async (req, res, next) => {
             },
             { new: true, runValidators: true }
         );
-
-        if (!updated) {
-            return res.status(404).json({ success: false, message: 'Product not found' });
-        }
 
         res.json({ success: true, product: updated });
     } catch (error) {

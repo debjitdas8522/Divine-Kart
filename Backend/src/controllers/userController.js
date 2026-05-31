@@ -35,8 +35,19 @@ export async function verifyRegisterOtp(req, res) {
 // Send login OTP to user email or phone (Unified Sign-In or Sign-Up)
 export async function sendLoginOtp(req, res) {
     const { email, phone } = req.body;
-    const identifier = email ? email.trim().toLowerCase() : String(phone).trim();
-    const query = email ? { email: identifier } : { phone: identifier };
+
+    // Guard: require at least one non-empty identifier
+    const trimmedEmail = email?.trim().toLowerCase();
+    const trimmedPhone = phone?.toString().trim();
+    if (!trimmedEmail && !trimmedPhone) {
+        return res.status(400).json({
+            success: false,
+            message: 'Either email or phone is required'
+        });
+    }
+
+    const identifier = trimmedEmail || trimmedPhone;
+    const query = trimmedEmail ? { email: identifier } : { phone: identifier };
 
     try {
         const user = await User.findOne(query);
@@ -93,7 +104,7 @@ export async function verifyLoginOtp(req, res) {
             if (!user.loginOtp || !user.loginOtpExpiry || new Date() > new Date(user.loginOtpExpiry)) {
                 return res.status(400).json({ success: false, message: "OTP expired or not requested" });
             }
-            if (otp !== user.loginOtp) {
+            if (String(otp).trim() !== String(user.loginOtp).trim()) {
                 return res.status(400).json({ success: false, message: "Invalid OTP" });
             }
             // Clear OTP
@@ -174,7 +185,6 @@ export async function updateUserDetails(request, response) {
 
         const updateUser = await User.updateOne({ _id: userId }, {
             ...(name && { name: name }),
-            ...(email && { email: email }),
             ...(phone && { phone: phone }),
             ...(password && { password: hashPassword })
         })
@@ -459,7 +469,7 @@ export async function requestEmailUpdate(req, res) {
             return res.status(400).json({ success: false, message: 'Email already in use' });
         }
 
-        const otp = String(Math.floor(Math.random() * 900000) + 100000); 
+        const otp = String(generatedOtp());
         const ttl = 15 * 60; 
 
         const key = `email_update_pending:${userId}`;
@@ -501,7 +511,7 @@ export async function verifyEmailUpdate(req, res) {
             return res.status(400).json({ success: false, message: 'No pending email update or OTP expired.' });
         }
 
-        if (otp !== pending.otp) {
+        if (String(otp).trim() !== String(pending.otp).trim()) {
             return res.status(400).json({ success: false, message: 'Invalid OTP' });
         }
 

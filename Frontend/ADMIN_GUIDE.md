@@ -8,7 +8,7 @@ The admin panel runs on the **`admin.`** subdomain:
 |-------------|-----|
 | Development | `http://admin.localhost:5173` |
 
-> **Requirement:** You must be logged in with an admin account (`isAdmin: true`).  
+> **Requirement:** You must be logged in with an admin account (`role: 'admin'`).  
 > Contact the backend team to enable admin access for your account.
 
 ---
@@ -17,14 +17,14 @@ The admin panel runs on the **`admin.`** subdomain:
 
 | Page | Path | Description |
 |------|------|-------------|
-| Dashboard | `/admin` | Platform-wide stats, pending stores, system status |
+| Dashboard | `/` | Platform-wide stats, pending stores, system status |
 | Stores | `/stores` | All registered vendor stores and approval status |
 | Store Detail | `/stores/:id` | Full store view, location, and inventory |
 | Users | `/users` | Registered user list |
 
 ---
 
-## 📊 Dashboard (`/admin`)
+## 📊 Dashboard (`/`)
 
 Real-time overview of the entire platform:
 
@@ -76,10 +76,10 @@ Logout is available via the user menu in the bottom-left corner.
 
 ## Role & Access
 
-- Admin access is controlled by the `isAdmin` field on the user document in MongoDB.
-- Non-admin users are automatically redirected away from all `/admin/*` routes.
+- Admin access is controlled by the `role` field (`'admin'`) on the user document in MongoDB.
+- Non-admin users are automatically redirected away from all admin subdomain routes.
 - To grant admin access, update the user document in the database:
 
 ```js
-db.users.updateOne({ email: "user@example.com" }, { $set: { isAdmin: true } })
+db.users.updateOne({ email: "user@example.com" }, { $set: { role: "admin" } })
 ```

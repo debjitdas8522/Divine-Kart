@@ -51,7 +51,7 @@ export const getAddressController = async(request,response)=>{
     try {
         const userId = request.userId // middleware auth
 
-        const data = await Address.find({ userId: userId }).sort({ createdAt: -1 })
+        const data = await Address.find({ userId: userId, isActive: true }).sort({ createdAt: -1 })
 
         return response.json({
             data: data,
@@ -85,6 +85,14 @@ export const updateAddressController = async(request,response)=>{
             }
         )
 
+        if (updateAddress.matchedCount === 0) {
+            return response.status(404).json({
+                message: "Address not found",
+                error: true,
+                success: false
+            })
+        }
+
         return response.json({
             message: "Address Updated",
             error: false,
@@ -109,6 +117,14 @@ export const deleteAddressController = async(request,response)=>{
             { _id: _id, userId: userId },
             { isActive: false }
         )
+
+        if (disableAddress.matchedCount === 0) {
+            return response.status(404).json({
+                message: "Address not found",
+                error: true,
+                success: false
+            })
+        }
 
         return response.json({
             message: "Address removed",

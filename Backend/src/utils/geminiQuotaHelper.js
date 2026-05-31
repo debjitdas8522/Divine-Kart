@@ -54,7 +54,8 @@ export const getQuotaStatus = () => ({
 export const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const retryWithBackoff = async (fn, maxRetries = 3) => {
-  for (let i = 0; i < maxRetries; i++) {
+  const effectiveRetries = Math.max(1, maxRetries);
+  for (let i = 0; i < effectiveRetries; i++) {
     try {
       return await fn();
     } catch (error) {

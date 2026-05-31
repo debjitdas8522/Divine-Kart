@@ -1,4 +1,4 @@
-﻿import useVendorStore from '@/store/vendorStore';
+import useVendorStore from '@/store/vendorStore';
 import {
   getMyStore, getMyStoreOrders, getMyNotifications, getMyProducts,
 } from '@/services/storeService';
@@ -78,7 +78,7 @@ const Dashboard = () => {
   });
   const unreadCount = notifRes?.unreadCount ?? 0;
 
-  const totalRevenue = recentOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const recentRevenue = recentOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
 
   const ordersByStatus = recentOrders.reduce((acc, o) => {
     acc[o.status] = (acc[o.status] || 0) + 1;
@@ -133,7 +133,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard icon={Package}     label="Total Products" value={totalProducts}              color="blue" />
         <StatsCard icon={ShoppingBag} label="Total Orders"   value={totalOrders}                color="green" />
-        <StatsCard icon={DollarSign}  label="Total Revenue"  value={formatCurrency(totalRevenue)} color="purple" />
+        <StatsCard icon={DollarSign}  label="Recent Revenue"  value={formatCurrency(recentRevenue)} color="purple" />
         <StatsCard icon={Bell}        label="Unread Alerts"  value={unreadCount || '-'}         color="orange" />
       </div>
 

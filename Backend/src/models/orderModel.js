@@ -74,11 +74,6 @@ const orderSchema = new mongoose.Schema({
         enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'], 
         default: 'pending'
     },
-    createdAt: { 
-        type: Date, 
-        default: Date.now, 
-        index: true 
-    },
     deliveryDate: { 
         type: Date, 
         index: true 
@@ -137,7 +132,10 @@ orderSchema.pre('save', function(next) {
     
     this.subtotal = this.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     this.tax = parseFloat((this.subtotal * PRICING_CONFIG.TAX_RATE).toFixed(2));
-    this.totalAmount = this.subtotal + this.tax + (this.deliveryFee || PRICING_CONFIG.DEFAULT_SHIPPING);
+    // Use nullish check (not falsy) so a valid 0 delivery fee is preserved
+    const resolvedDeliveryFee = (this.deliveryFee != null) ? this.deliveryFee : PRICING_CONFIG.DEFAULT_SHIPPING;
+    this.deliveryFee = resolvedDeliveryFee;
+    this.totalAmount = this.subtotal + this.tax + resolvedDeliveryFee;
     
     // Validate total is positive
     if (this.totalAmount <= 0) {

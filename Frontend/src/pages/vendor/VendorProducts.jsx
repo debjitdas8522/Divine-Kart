@@ -91,6 +91,9 @@ const ProductForm = ({ productId, onBack }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: form.name, category: form.category, price: form.price }),
       });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
       if (data.description) {
         setForm((prev) => ({ ...prev, description: data.description }));

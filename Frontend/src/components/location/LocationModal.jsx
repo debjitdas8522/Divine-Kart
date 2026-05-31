@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 
 const API_KEY = import.meta.env.VITE_OPENCAGE_KEY;
 
+if (!API_KEY) {
+    console.warn('[LocationModal] VITE_OPENCAGE_KEY is not set. Geocoding features will not work.');
+}
+
 
 // ✅ Reverse geocode (lat,lng → address)
 async function reverseGeocode(lat, lng) {
@@ -51,26 +55,36 @@ const LocationModal = ({ isOpen, onClose }) => {
         }
     }, [isOpen]);
 
-    // Debounced search
+    // Debounced search with AbortController for race condition prevention
     useEffect(() => {
         if (query.trim().length < 3) {
             setResults([]);
             return;
         }
 
+        const controller = new AbortController();
         clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(async () => {
             setSearching(true);
             try {
                 const data = await forwardGeocode(query.trim());
-                setResults(data.slice(0, 5));
+                if (!controller.signal.aborted) {
+                    setResults(data.slice(0, 5));
+                }
             } catch {
-                setResults([]);
+                if (!controller.signal.aborted) {
+                    setResults([]);
+                }
             }
-            setSearching(false);
+            if (!controller.signal.aborted) {
+                setSearching(false);
+            }
         }, 500);
 
-        return () => clearTimeout(debounceRef.current);
+        return () => {
+            clearTimeout(debounceRef.current);
+            controller.abort();
+        };
     }, [query]);
 
     const handleGPS = () => {

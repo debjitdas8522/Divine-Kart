@@ -70,8 +70,17 @@ export const seedCategoriesController = async (request, response) => {
             { id: 'decor', name: 'Temple Decor', icon: '🏮' },
         ];
 
-        await Category.deleteMany({}); // Clear existing
-        const data = await Category.insertMany(categories);
+        // Idempotent upsert — creates or updates without wiping existing categories
+        const bulkOps = categories.map(cat => ({
+            updateOne: {
+                filter: { id: cat.id },
+                update: { $set: { name: cat.name, icon: cat.icon } },
+                upsert: true
+            }
+        }));
+        await Category.bulkWrite(bulkOps);
+
+        const data = await Category.find({ id: { $in: categories.map(c => c.id) } });
 
         return response.json({
             message: "Categories seeded successfully",

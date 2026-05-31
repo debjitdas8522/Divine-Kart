@@ -81,13 +81,14 @@ export async function findStoreByPincode(pincode) {
  * @returns {Promise<{store: object|null, routingMethod: string}>}
  */
 export async function findStoreByCity(city) {
+    const escapedCity = city.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const store = await Store.findOne({
         isApproved: true,
         isActive: true,
-        'address.city': { $regex: new RegExp(`^${city.trim()}$`, 'i') }
+        'address.city': { $regex: new RegExp(`^${escapedCity}$`, 'i') }
     }).lean();
 
-    return { store: store || null, routingMethod: 'Pincode' };
+    return { store: store || null, routingMethod: 'City' };
 }
 
 /**
@@ -106,7 +107,7 @@ export async function resolveStoreForOrder(shippingAddress) {
             : shippingAddress;
 
         // 1. Geo coordinates (most precise)
-        if (addr?.lat && addr?.lng) {
+        if (Number.isFinite(addr?.lat) && Number.isFinite(addr?.lng)) {
             const result = await findNearestStoreByCoords(addr.lat, addr.lng);
             if (result.store) {
                 console.log(`[routingService] Routed by geo coords to store: ${result.store.name}`);

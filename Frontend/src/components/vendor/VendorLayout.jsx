@@ -58,9 +58,11 @@ const VendorLayout = () => {
     setToggling(true);
     try {
       const res = await toggleMyStoreStatus();
-      if (setStore && res.data) setStore(res.data);
+      const updatedStore = res.data ?? res.store ?? null;
+      if (setStore && updatedStore) setStore(updatedStore);
       qc.invalidateQueries({ queryKey: ['vendor-store'] });
-      toast.success(res.message ?? (res.isActive ? 'Store is now ONLINE 🟢' : 'Store is now OFFLINE 🔴'));
+      const nowActive = updatedStore?.isActive ?? res.isActive;
+      toast.success(res.message ?? (nowActive ? 'Store is now ONLINE 🟢' : 'Store is now OFFLINE 🔴'));
     } catch (err) {
       toast.error(err?.response?.data?.message ?? 'Could not update store status');
     } finally {

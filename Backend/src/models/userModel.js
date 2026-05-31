@@ -46,13 +46,13 @@ const userSchema = new mongoose.Schema({
     shoppingCart: [
         {
             type: mongoose.Schema.ObjectId,
-            ref: 'cartProduct'
+            ref: 'Cart'
         }
     ],
     orderHistory: [
         {
             type: mongoose.Schema.ObjectId,
-            ref: 'order'
+            ref: 'Order'
         }
     ],
     forgotPasswordOtp: {

@@ -77,7 +77,7 @@ npm run preview
 Frontend/
 ├── public/
 ├── src/
-│   ├── App.jsx                     # Root — subdomain routing (admin vs client)
+│   ├── App.jsx                     # Root — subdomain routing (admin vs vendor vs client)
 │   ├── routes.jsx                  # All React Router routes
 │   ├── main.jsx                    # Vite entry point
 │   ├── index.css                   # Global styles + Tailwind + CSS variables

@@ -1,7 +1,5 @@
-// API Base URL
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-// App Info
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'DivineKart';
 
 // Routes
@@ -19,23 +17,23 @@ export const ROUTES = {
     PRODUCT_DETAIL: '/product/:id',
     CATEGORY: '/category/:category',
     SEARCH: '/search',
-    // Admin routes
-    ADMIN: '/admin',
-    ADMIN_USERS: '/admin/users',
+    // Admin sub domain routes
+    ADMIN: '/',
+    ADMIN_USERS: '/users',
     ADMIN_STORES: '/stores',
     ADMIN_STORE_DETAIL: '/stores/:id',
 };
 
-// Vendor Routes
+// Vendor sub domain routes
 export const VENDOR_ROUTES = {
-    LOGIN: '/vendor/login',
-    REGISTER: '/vendor/register',
-    DASHBOARD: '/vendor/dashboard',
-    PROFILE: '/vendor/profile',
-    ORDERS: '/vendor/orders',
-    ORDER_DETAIL: '/vendor/orders/:id',
-    PRODUCTS: '/vendor/products',
-    NOTIFICATIONS: '/vendor/notifications',
+    LOGIN: '/login',
+    REGISTER: '/register',
+    DASHBOARD: '/dashboard',
+    PROFILE: '/profile',
+    ORDERS: '/orders',
+    ORDER_DETAIL: '/orders/:id',
+    PRODUCTS: '/products',
+    NOTIFICATIONS: '/notifications',
 };
 
 // Storage Keys

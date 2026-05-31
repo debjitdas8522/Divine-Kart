@@ -8,6 +8,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // ─── In-Memory Cache (development/single-instance) ─────────────────────────────
 const memoryCache = new Map();
 const cacheTTL = 60 * 60 * 1000; // 1 hour
+const MAX_CACHE_ENTRIES = 500;
 
 const getCache = async (key) => {
   const cached = memoryCache.get(key);
@@ -19,6 +20,11 @@ const getCache = async (key) => {
 };
 
 const setCache = async (key, value, ttlSeconds = 3600) => {
+  // Evict oldest entries if cache is full
+  if (memoryCache.size >= MAX_CACHE_ENTRIES) {
+    const firstKey = memoryCache.keys().next().value;
+    memoryCache.delete(firstKey);
+  }
   memoryCache.set(key, {
     value,
     expiresAt: Date.now() + ttlSeconds * 1000,
@@ -192,15 +198,16 @@ Rules:
       mongoQuery.category = filters.category;
     }
 
-    if (filters.minPrice !== null || filters.maxPrice !== null) {
+    if (filters.minPrice != null || filters.maxPrice != null) {
       mongoQuery.price = {};
-      if (filters.minPrice !== null) mongoQuery.price.$gte = filters.minPrice;
-      if (filters.maxPrice !== null) mongoQuery.price.$lte = filters.maxPrice;
+      if (filters.minPrice != null) mongoQuery.price.$gte = filters.minPrice;
+      if (filters.maxPrice != null) mongoQuery.price.$lte = filters.maxPrice;
     }
 
-    // Keyword search across name and description
+    // Keyword search across name and description (escape regex metacharacters)
     if (filters.keywords && filters.keywords.length > 0) {
-      const keywordRegex = filters.keywords.map((kw) => new RegExp(kw, 'i'));
+      const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const keywordRegex = filters.keywords.map((kw) => new RegExp(escapeRegex(kw), 'i'));
       mongoQuery.$or = [
         { name: { $in: keywordRegex } },
         { description: { $in: keywordRegex } },
@@ -221,9 +228,10 @@ Rules:
   } catch (error) {
     console.error('aiSearch error:', error.message);
 
-    // Fallback: basic text search on name
+    // Fallback: basic text search on name (escape regex metacharacters)
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const products = await Product.find({
-      name: { $regex: query, $options: 'i' },
+      name: { $regex: escapedQuery, $options: 'i' },
     })
       .limit(20)
       .lean();

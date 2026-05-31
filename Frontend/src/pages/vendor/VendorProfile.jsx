@@ -46,14 +46,19 @@ const VendorProfile = () => {
 
   const logoMutation = useMutation({
     mutationFn: (file) => uploadStoreLogo(file),
-    onSuccess: (data) => { toast.success('Logo uploaded!'); setLogoPreview(data.data?.logo ?? logoPreview); qc.invalidateQueries({ queryKey: ['vendor-store'] }); },
+    onSuccess: (data) => {
+      toast.success('Logo uploaded!');
+      // Only update preview after successful upload
+      setLogoPreview(data.data?.logo ?? logoPreview);
+      qc.invalidateQueries({ queryKey: ['vendor-store'] });
+    },
     onError: () => toast.error('Logo upload failed'),
   });
 
   const handleLogoChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setLogoPreview(URL.createObjectURL(file));
+    // Don't set preview immediately — wait for onSuccess
     logoMutation.mutate(file);
   };
 

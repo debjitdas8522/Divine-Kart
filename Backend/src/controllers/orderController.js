@@ -158,7 +158,8 @@ export const createOrder = async (req, res, next) => {
         // Calculate pricing server-side
         const subtotal = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
         const tax = parseFloat((subtotal * PRICING_CONFIG.TAX_RATE).toFixed(2));
-        const total = subtotal + tax + Number(shipping || PRICING_CONFIG.DEFAULT_SHIPPING);
+        const deliveryFee = Number(shipping ?? PRICING_CONFIG.DEFAULT_SHIPPING);
+        const total = subtotal + tax + deliveryFee;
 
         // HYPERLOCAL ROUTING
         const { store: assignedStore, routingMethod } = await resolveStoreForOrder(shippingAddress);
@@ -203,7 +204,7 @@ export const createOrder = async (req, res, next) => {
                     customer,
                     shippingAddress: shippingAddressDoc,
                     items: orderItems,
-                    deliveryFee: Number(shipping),
+                    deliveryFee,
                     subtotal,
                     tax,
                     totalAmount: total,
@@ -250,7 +251,7 @@ export const createOrder = async (req, res, next) => {
             customer,
             shippingAddress: shippingAddressDoc,
             items: orderItems,
-            deliveryFee: Number(shipping),
+            deliveryFee,
             subtotal,
             tax,
             totalAmount: total,
@@ -279,7 +280,15 @@ export const createOrder = async (req, res, next) => {
         );
 
         if (bulkResult.modifiedCount < orderItems.length) {
-            console.warn(`[createOrder] Stock insufficient for some items in order ${orderId}.`);
+            // Rollback: mark order as failed when stock is insufficient
+            newOrder.paymentStatus = 'Unpaid';
+            newOrder.status = 'cancelled';
+            await newOrder.save();
+            console.warn(`[createOrder] Stock insufficient for order ${orderId}. Order rolled back.`);
+            return res.status(409).json({
+                success: false,
+                message: 'Some items are out of stock. Order could not be completed.',
+            });
         }
 
         // Notify the assigned store asynchronously (don't block response)
@@ -645,7 +654,11 @@ export const handleRazorpayWebhook = async (req, res, next) => {
             .update(bodyString)
             .digest('hex');
 
-        if (expected !== signature) {
+        // Use timing-safe comparison to prevent timing attacks
+        const expectedBuf = Buffer.from(expected, 'utf8');
+        const signatureBuf = Buffer.from(signature, 'utf8');
+        if (expectedBuf.length !== signatureBuf.length ||
+            !crypto.timingSafeEqual(expectedBuf, signatureBuf)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid signature'

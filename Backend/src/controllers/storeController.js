@@ -541,6 +541,12 @@ export async function getStoreOrders(req, res) {
     const { status } = req.query;
 
     try {
+        // Verify ownership: vendor can only access their own store's orders
+        const store = await Store.findById(storeId).lean();
+        if (!store || store.owner.toString() !== req.userId.toString()) {
+            return res.status(403).json({ success: false, message: 'Access denied. You do not own this store.' });
+        }
+
         const query = { store: storeId };
         if (status) query.status = status;
 
@@ -572,6 +578,12 @@ export async function getStoreOrders(req, res) {
 export async function getStoreOrderById(req, res) {
     const { storeId, orderId } = req.params;
     try {
+        // Verify ownership
+        const store = await Store.findById(storeId).lean();
+        if (!store || store.owner.toString() !== req.userId.toString()) {
+            return res.status(403).json({ success: false, message: 'Access denied. You do not own this store.' });
+        }
+
         const order = await Order.findOne({ _id: orderId, store: storeId })
             .populate('user', 'name email phone')  // user is the ObjectId ref
             .lean();
@@ -612,6 +624,12 @@ export async function updateStoreOrderStatus(req, res) {
     }
 
     try {
+        // Verify ownership
+        const storeDoc = await Store.findById(storeId).lean();
+        if (!storeDoc || storeDoc.owner.toString() !== req.userId.toString()) {
+            return res.status(403).json({ success: false, message: 'Access denied. You do not own this store.' });
+        }
+
         const order = await Order.findOne({ _id: orderId, store: storeId });
         if (!order) {
             return res.status(404).json({ success: false, message: 'Order not found in your store.' });
@@ -732,13 +750,17 @@ export async function adminApproveStore(req, res) {
             store.isActive = true;
             await store.save();
 
-            // Send approval email
+            // Send approval email — isolated so failure doesn't affect saved state
             if (ownerEmail) {
-                await sendEmail({
-                    sendTo: ownerEmail,
-                    subject: `Your store "${store.name}" has been approved — DivineKart`,
-                    html: storeApprovedTemplate({ storeName: store.name, ownerName })
-                });
+                try {
+                    await sendEmail({
+                        sendTo: ownerEmail,
+                        subject: `Your store "${store.name}" has been approved — DivineKart`,
+                        html: storeApprovedTemplate({ storeName: store.name, ownerName })
+                    });
+                } catch (emailErr) {
+                    console.error('[adminApproveStore] Email notification failed:', emailErr.message);
+                }
             }
 
             return res.json({ success: true, message: 'Store approved and vendor notified.', data: store });
@@ -747,13 +769,17 @@ export async function adminApproveStore(req, res) {
             store.isActive = false;
             await store.save();
 
-            // Send rejection email
+            // Send rejection email — isolated so failure doesn't affect saved state
             if (ownerEmail) {
-                await sendEmail({
-                    sendTo: ownerEmail,
-                    subject: `Store application update — DivineKart`,
-                    html: storeRejectedTemplate({ storeName: store.name, ownerName, reason: reason || '' })
-                });
+                try {
+                    await sendEmail({
+                        sendTo: ownerEmail,
+                        subject: `Store application update — DivineKart`,
+                        html: storeRejectedTemplate({ storeName: store.name, ownerName, reason: reason || '' })
+                    });
+                } catch (emailErr) {
+                    console.error('[adminApproveStore] Rejection email failed:', emailErr.message);
+                }
             }
 
             return res.json({ success: true, message: 'Store rejected and vendor notified.', data: store });
