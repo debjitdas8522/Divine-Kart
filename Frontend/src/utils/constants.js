@@ -1,8 +1,6 @@
-// API Base URL
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-// App Info
-export const APP_NAME = import.meta.env.VITE_APP_NAME || 'Blinkit';
+export const APP_NAME = import.meta.env.VITE_APP_NAME || 'DivineKart';
 
 // Routes
 export const ROUTES = {
@@ -19,14 +17,23 @@ export const ROUTES = {
     PRODUCT_DETAIL: '/product/:id',
     CATEGORY: '/category/:category',
     SEARCH: '/search',
-    // Admin routes
-    ADMIN: '/admin',
-    ADMIN_PRODUCTS: '/admin/products',
-    ADMIN_PRODUCT_NEW: '/admin/products/new',
-    ADMIN_PRODUCT_EDIT: '/admin/products/edit/:id',
-    ADMIN_ORDERS: '/admin/orders',
-    ADMIN_ORDER_DETAIL: '/admin/orders/:id',
-    ADMIN_USERS: '/admin/users',
+    // Admin sub domain routes
+    ADMIN: '/',
+    ADMIN_USERS: '/users',
+    ADMIN_STORES: '/stores',
+    ADMIN_STORE_DETAIL: '/stores/:id',
+};
+
+// Vendor sub domain routes
+export const VENDOR_ROUTES = {
+    LOGIN: '/login',
+    REGISTER: '/register',
+    DASHBOARD: '/dashboard',
+    PROFILE: '/profile',
+    ORDERS: '/orders',
+    ORDER_DETAIL: '/orders/:id',
+    PRODUCTS: '/products',
+    NOTIFICATIONS: '/notifications',
 };
 
 // Storage Keys
@@ -35,6 +42,7 @@ export const STORAGE_KEYS = {
     REFRESH_TOKEN: 'refreshToken',
     USER: 'user',
     CART: 'cart',
+    VENDOR: 'vendor-storage',
 };
 
 // Order Status

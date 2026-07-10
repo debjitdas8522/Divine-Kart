@@ -6,6 +6,16 @@ export const getProducts = async (params = {}) => {
     return data;
 };
 
+// Get products from specific store IDs (for hyperlocal home feed)
+export const getProductsByStoreIds = async (storeIds = [], params = {}) => {
+    if (storeIds.length === 0) return { products: [], pagination: {} };
+    const { data } = await api.get('/api/products', {
+        params: { storeIds: storeIds.join(','), ...params },
+    });
+    return data;
+};
+
+
 // Get product by ID
 export const getProductById = async (productId) => {
     const { data } = await api.get(`/api/products/${productId}`);

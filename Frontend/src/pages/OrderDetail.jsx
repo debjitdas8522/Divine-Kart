@@ -4,7 +4,7 @@ import { getOrderById } from '@/services/orderService';
 import { ORDER_STATUS, ROUTES } from '@/utils/constants';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, CheckCircle, CreditCard, MapPin, Package, Truck } from 'lucide-react';
+import { ArrowLeft, CheckCircle, CreditCard, MapPin, Package, Store, Truck } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 const OrderDetail = () => {
@@ -82,6 +82,17 @@ const OrderDetail = () => {
             <p className="text-gray-600">
               Placed on {formatDateTime(order.createdAt)}
             </p>
+            {order.store && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <Store className="w-3.5 h-3.5 text-amber-500" />
+                <p className="text-sm text-gray-500">
+                  Fulfilled by{' '}
+                  <strong className="text-gray-700">
+                    {order.store?.name ?? 'Local Store'}
+                  </strong>
+                </p>
+              </div>
+            )}
           </div>
           <Badge size="lg" variant={getStatusBadgeVariant(order.status)}>
             {order.status}

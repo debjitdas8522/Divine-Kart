@@ -15,7 +15,8 @@ The React + Vite frontend for the Divine-Kart spiritual e-commerce platform. A f
 - **Profile** — Saved addresses (add / edit / delete), account stats
 - **Auth** — OTP-based login via phone or email, Forgot Password flow
 - **AI Chat** — Floating chat widget for product discovery
-- **Admin Panel** — Subdomain-routed (`admin.*`): Dashboard, Products (CRUD + ImageKit upload), Orders (status management), Users list
+- **Admin Panel** — Subdomain-routed (`admin.*`): Dashboard, Stores (approve/suspend/view), Users list
+- **Vendor Portal** — Subdomain-routed (`vendor.*`): Dashboard, Products (CRUD + ImageKit upload), Orders (status management), Notifications
 
 ---
 
@@ -76,7 +77,7 @@ npm run preview
 Frontend/
 ├── public/
 ├── src/
-│   ├── App.jsx                     # Root — subdomain routing (admin vs client)
+│   ├── App.jsx                     # Root — subdomain routing (admin vs vendor vs client)
 │   ├── routes.jsx                  # All React Router routes
 │   ├── main.jsx                    # Vite entry point
 │   ├── index.css                   # Global styles + Tailwind + CSS variables
@@ -92,12 +93,16 @@ Frontend/
 │   │   ├── Orders.jsx              # Account sidebar + order history
 │   │   ├── OrderDetail.jsx         # Single order tracking
 │   │   ├── admin/
-│   │   │   ├── AdminDashboard.jsx      # Stats, revenue, recent orders
-│   │   │   ├── AdminProducts.jsx       # Product list + delete
-│   │   │   ├── AdminProductForm.jsx    # Create/edit product with ImageKit
-│   │   │   ├── AdminOrders.jsx         # All orders + status filter
-│   │   │   ├── AdminOrderDetail.jsx    # Order detail + status update
+│   │   │   ├── AdminDashboard.jsx      # Platform stats, pending stores
+│   │   │   ├── AdminStores.jsx         # All stores + approve/suspend
+│   │   │   ├── AdminStoreDetail.jsx    # Store info + inventory
 │   │   │   └── AdminUsers.jsx          # Registered users list
+│   │   ├── vendor/
+│   │   │   ├── VendorDashboard.jsx     # Vendor stats, recent orders
+│   │   │   ├── VendorProducts.jsx      # Store inventory management
+│   │   │   ├── VendorOrders.jsx        # Store orders + status pipeline
+│   │   │   ├── VendorOrderDetail.jsx   # Order detail + status updates
+│   │   │   └── VendorNotifications.jsx # Order alerts
 │   │
 │   ├── components/
 │   │   ├── layout/

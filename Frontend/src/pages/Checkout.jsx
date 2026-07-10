@@ -4,13 +4,14 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
+import useLocationStore from '@/store/locationStore';
 import { getAddresses } from '@/services/addressService';
 import { createOrder, verifyPayment } from '@/services/orderService';
 import { PAYMENT_METHODS, ROUTES } from '@/utils/constants';
 import { formatCurrency } from '@/utils/formatters';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Check, CreditCard, Edit2, MapPin, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { Check, CreditCard, MapPin, Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -75,6 +76,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { items, subtotal, deliveryFee, total, clearCart } = useCart();
+  const { location: headerLocation } = useLocationStore();
 
   const [step, setStep] = useState(1);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -90,6 +92,13 @@ const Checkout = () => {
 
   const addresses = addressesData?.data || [];
   const selectedAddress = addresses.find(a => a._id === selectedAddressId);
+
+  // Auto-select the first address when addresses are loaded
+  useEffect(() => {
+    if (addresses.length > 0 && !selectedAddressId) {
+      setSelectedAddressId(addresses[0]._id);
+    }
+  }, [addresses, selectedAddressId]);
 
   // Create order mutation
   const createOrderMutation = useMutation({
@@ -156,13 +165,32 @@ const Checkout = () => {
       return;
     }
 
+    // Enrich shippingAddress with coords for hyperlocal routing.
+    // Priority: address GPS → header-selected location GPS → null
+    const coords = selectedAddress?.location?.coordinates; // GeoJSON [lng, lat]
+    const fallbackLat = headerLocation?.lat ?? null;
+    const fallbackLng = headerLocation?.lng ?? null;
+
+    const enrichedAddress = selectedAddress
+      ? {
+          addressLine: selectedAddress.addressLine,
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+          country: selectedAddress.country,
+          pincode: selectedAddress.pincode,
+          phone: selectedAddress.phone,
+          lat: coords?.[1] ?? fallbackLat,
+          lng: coords?.[0] ?? fallbackLng,
+        }
+      : selectedAddressId;
+
     createOrderMutation.mutate({
       items: items.map(item => ({
         product: item.productId,
         quantity: item.quantity,
         price: item.price,
       })),
-      shippingAddress: selectedAddressId,
+      shippingAddress: enrichedAddress,
       paymentMethod: selectedPaymentMethod,
       totalAmount: total,
     });
@@ -243,12 +271,6 @@ const Checkout = () => {
                           <p className="text-sm text-gray-600">{address.city}, {address.state} - {address.pincode}</p>
                           <p className="text-sm text-gray-600">Mobile: {address.phone}</p>
                         </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setEditingAddress(address); setShowAddressModal(true); }}
-                          className="p-1.5 hover:bg-gray-100 rounded"
-                        >
-                          <Edit2 className="w-4 h-4 text-gray-400" />
-                        </button>
                       </label>
                     ))}
                   </div>

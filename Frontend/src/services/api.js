@@ -10,11 +10,16 @@ const api = axios.create({
 });
 
 // Request interceptor - Add auth token to requests
+// IMPORTANT: Only inject the regular user token if no Authorization header has
+// already been set by the caller (e.g. vendor requests set their own token).
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        const alreadyHasAuth = !!config.headers?.Authorization;
+        if (!alreadyHasAuth) {
+            const token = localStorage.getItem('token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
         }
         return config;
     },
@@ -33,8 +38,15 @@ api.interceptors.response.use(
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
+            // Vendor session expired — redirect to vendor login (not regular login)
+            if (error.response?.data?.vendorTokenExpired) {
+                localStorage.removeItem('vendor-token');
+                window.location.href = '/login';
+                return Promise.reject(error);
+            }
+
             try {
-                // Try to refresh token
+                // Try to refresh regular user token
                 const refreshToken = localStorage.getItem('refreshToken');
                 if (refreshToken) {
                     const { data } = await axios.post(

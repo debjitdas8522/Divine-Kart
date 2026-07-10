@@ -61,11 +61,18 @@ npm run dev               # starts on http://localhost:5173
 
 ### 🔑 Admin Panel
 - Served on `admin.` subdomain (e.g. `admin.localhost:5173`)
-- **Dashboard** — Sales stats, revenue overview, recent orders
-- **Products** — Create / edit / delete products with ImageKit image upload
-- **Orders** — View all orders, update status (Pending → Confirmed → Shipped → Delivered)
+- **Dashboard** — Platform-wide store stats, pending approvals, recent stores
+- **Stores** — Approve, suspend, and view all registered vendor stores
 - **Users** — Browse registered users
 - Role-gated: only authenticated Admin users can access
+
+### 🏪 Vendor Portal
+- Served on `vendor.` subdomain (e.g. `vendor.localhost:5173`)
+- **Dashboard** — Vendor sales, revenue, and active orders
+- **Products** — Local store inventory management (CRUD + ImageKit)
+- **Orders** — Manage store-specific orders (Status tracking)
+- **Notifications** — Real-time alerts for new orders
+- Role-gated: only authenticated Store Owners can access
 
 ### 🤖 AI Features
 - AI Chat Assistant for product discovery
@@ -115,25 +122,6 @@ Full API documentation: import `Backend/DivineKart.postman_collection.json` into
 
 ---
 
-## 🐳 Docker
-
-```bash
-# Start everything (API + MongoDB + Redis)
-docker-compose up -d
-
-# Development mode (hot reload)
-docker-compose -f docker-compose.dev.yml up
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
-```
-
-See [Backend/DOCKER.md](./Backend/DOCKER.md) for the complete Docker setup guide.
-
----
 
 ## 📄 License
 

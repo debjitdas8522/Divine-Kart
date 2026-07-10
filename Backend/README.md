@@ -65,22 +65,6 @@ npm start
 
 ---
 
-## 🐳 Docker
-
-```bash
-# Development (hot reload)
-docker-compose -f docker-compose.dev.yml up
-
-# Production
-docker-compose up -d
-
-# View logs
-docker-compose logs -f app
-```
-
-See [DOCKER.md](./DOCKER.md) for the full Docker setup guide.
-
----
 
 ## 📚 API Endpoints
 
@@ -142,17 +126,38 @@ See [DOCKER.md](./DOCKER.md) for the full Docker setup guide.
 | `PUT`  | `/api/address/update` | ✅ | Update address |
 | `DELETE` | `/api/address/disable` | ✅ | Remove address |
 
+### Stores & Vendors
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/stores/register` | — | Submit store registration application |
+| `POST` | `/api/stores/login/send-otp` | — | Send OTP to vendor email |
+| `POST` | `/api/stores/login/verify-otp` | — | Verify vendor OTP & issue tokens |
+| `GET`  | `/api/stores/nearby` | — | Find stores by proximity or pincode |
+| `GET`  | `/api/stores/me` | ✅ Vendor | Get store profile |
+| `PUT`  | `/api/stores/me` | ✅ Vendor | Update store profile |
+| `PUT`  | `/api/stores/me/logo` | ✅ Vendor | Upload store logo (ImageKit) |
+| `PATCH`| `/api/stores/me/status` | ✅ Vendor | Toggle store active status |
+| `GET`  | `/api/stores/me/products` | ✅ Vendor | List vendor products |
+| `POST` | `/api/stores/me/products` | ✅ Vendor | Add new store product |
+| `PUT`  | `/api/stores/me/products/:productId` | ✅ Vendor | Update store product |
+| `DELETE`| `/api/stores/me/products/:productId` | ✅ Vendor | Delete store product |
+| `GET`  | `/api/stores/me/notifications` | ✅ Vendor | Get unread order notifications |
+| `PUT`  | `/api/stores/me/notifications/read-all` | ✅ Vendor | Mark all notifications read |
+| `PUT`  | `/api/stores/me/notifications/:id/read` | ✅ Vendor | Mark a notification read |
+| `GET`  | `/api/stores/:id` | — | Get store details |
+| `GET`  | `/api/stores/:id/products` | — | List products of a store |
+| `GET`  | `/api/stores/:storeId/orders` | ✅ Vendor | List orders for the store |
+| `PUT`  | `/api/stores/:storeId/orders/:orderId` | ✅ Vendor | Update order status |
+
 ### Admin (🔑 Admin only)
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET`  | `/api/admin/dashboard` | Sales stats & revenue |
-| `GET`  | `/api/admin/orders` | All orders (paginated) |
-| `PUT`  | `/api/admin/orders/:id` | Update order status |
+| `GET`  | `/api/admin/stores` | List all stores with filters |
+| `GET`  | `/api/admin/stores/:id` | Get store details |
+| `PUT`  | `/api/admin/stores/:id/approve` | Approve store |
+| `PUT`  | `/api/admin/stores/:id/suspend` | Suspend store |
+| `DELETE` | `/api/admin/stores/:id` | Delete store |
 | `GET`  | `/api/admin/users` | All registered users |
-| `GET`  | `/api/admin/products` | All products |
-| `POST` | `/api/admin/products` | Create product |
-| `PUT`  | `/api/admin/products/:id` | Update product |
-| `DELETE` | `/api/admin/products/:id` | Delete product |
 
 ### AI & Recommendations
 | Method | Path | Auth | Description |
@@ -220,11 +225,6 @@ Backend/
 │   ├── loginOtpTemplate.js         # OTP email HTML template
 │   ├── forgotPasswordTemplate.js
 │   └── verifyEmailTemplate.js
-├── Dockerfile
-├── Dockerfile.dev
-├── docker-compose.yml
-├── docker-compose.dev.yml
-├── DOCKER.md
 └── DivineKart.postman_collection.json
 ```
 
@@ -249,7 +249,7 @@ Copy `.env.example` to `.env` and fill in:
 | `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook secret | Yes |
 | `RESEND_API` | Resend email API key | Yes |
 | `GEMINI_API_KEY` | Google Gemini AI API key | Yes |
-| `ALLOWED_ORIGINS` | Comma-separated CORS origins | Yes |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins (e.g. `http://localhost:5173,http://admin.localhost:5173,http://vendor.localhost:5173`) | Yes |
 | `FRONTEND_URL` | Frontend base URL | Yes |
 
 ---

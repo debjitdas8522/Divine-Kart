@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, User, Loader2, ShoppingCart } from 'lucide-react';
-import { getChatResponse } from '@/services/aiService';
 import { useCart } from '@/hooks/useCart';
-import { Link } from 'react-router-dom';
+import { getChatResponse } from '@/services/aiService';
 import { formatCurrency } from '@/utils/formatters';
+import { Bot, Loader2, MessageCircle, Send, ShoppingCart, User, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 
 const WELCOME_MESSAGE = {
   id: 'welcome',
@@ -85,6 +85,7 @@ const AIChatWidget = () => {
     toast.success(`${product.name} added to cart!`);
   };
 
+  
   return (
     <>
       {/* Floating Button */}
