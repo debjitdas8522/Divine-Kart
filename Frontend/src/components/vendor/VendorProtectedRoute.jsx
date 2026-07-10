@@ -4,13 +4,12 @@ import { Navigate, Outlet } from 'react-router-dom';
 
 /**
  * VendorProtectedRoute — guards all vendor subdomain pages that require a logged-in vendor.
- * Checks Zustand isVendor flag AND the presence of vendor-token in localStorage.
+ * Checks for vendor and token in the Zustand store.
  */
 const VendorProtectedRoute = () => {
-  const { isVendor } = useVendorStore();
-  const token = localStorage.getItem('vendor-token');
+  const { vendor, token } = useVendorStore();
 
-  if (!isVendor || !token) {
+  if (!vendor || !token) {
     return <Navigate to={VENDOR_ROUTES.LOGIN} replace />;
   }
 

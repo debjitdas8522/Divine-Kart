@@ -5,10 +5,13 @@ import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { sendVendorOtp, verifyVendorOtp, getMyStore } from '@/services/storeService';
+import { useQueryClient } from '@tanstack/react-query';
 
 const VendorLogin = () => {
   const navigate = useNavigate();
-  const { login, isVendor } = useVendorStore();
+  const { login, vendor, token } = useVendorStore();
+  const queryClient = useQueryClient();
+  const isVendor = !!vendor && !!token;
 
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
@@ -69,7 +72,8 @@ const VendorLogin = () => {
         storeData = storeRes?.data ?? null;
       } catch { /* store may not exist yet */ }
 
-      login(data.user, storeData, data.token);
+      login({ vendor: data.user, store: storeData, token: data.token });
+      queryClient.clear();
       toast.success(`Welcome back${data.user?.name ? `, ${data.user.name}` : ''}!`);
       navigate(VENDOR_ROUTES.DASHBOARD);
     } catch (err) {

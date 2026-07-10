@@ -1,38 +1,35 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 const useVendorStore = create(
     persist(
         (set) => ({
-            // State
-            vendor: null,   // user object (id, email, name, role)
-            store: null,    // store profile object
+            vendor: null,
+            store: null,
             token: null,
-            isVendor: false,
 
-            // Actions
-            login: (vendor, store, token) => {
-                localStorage.setItem('vendor-token', token);
-                set({ vendor, store, token, isVendor: true });
+            login: ({ vendor, store, token }) => {
+                set({
+                    vendor,
+                    store,
+                    token,
+                });
             },
 
             logout: () => {
-                localStorage.removeItem('vendor-token');
-                set({ vendor: null, store: null, token: null, isVendor: false });
+                set({
+                    vendor: null,
+                    store: null,
+                    token: null,
+                });
             },
 
-            setStore: (store) => set({ store }),
-
             setVendor: (vendor) => set({ vendor }),
+
+            setStore: (store) => set({ store }),
         }),
         {
-            name: 'vendor-storage',
-            partialize: (state) => ({
-                vendor: state.vendor,
-                store: state.store,
-                token: state.token,
-                isVendor: state.isVendor,
-            }),
+            name: "vendor-storage",
         }
     )
 );

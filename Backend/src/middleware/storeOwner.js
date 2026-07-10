@@ -14,10 +14,6 @@ export const isVendorRole = (req, res, next) => {
     next();
 };
 
-/**
- * Guard: Verified store owner — checks that the authenticated vendor owns the target store.
- * storeId is resolved from params, query, or body.
- */
 export const checkStoreOwner = async (req, res, next) => {
     try {
         const storeId = req.body?.store || req.query?.store || req.params?.storeId;

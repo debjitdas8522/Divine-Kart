@@ -10,14 +10,9 @@ import generatedOtp from '../utils/generatedOtp.js';
 import sendLoginOtpEmail from '../config/sendmail.js';
 import loginOtpTemplate from '../utils/loginOtpTemplate.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PUBLIC — Store Registration
-// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * POST /api/stores/register
- * Submit a new store registration application. Creates a vendor User if not exists.
- */
+// PUBLIC — Store Registration
+//  POST /api/stores/register
 export async function registerStore(req, res) {
     const { name, ownerName, email, phone, street, city, state, pincode, lng, lat, description, gstin } = req.body;
 
@@ -95,15 +90,12 @@ export async function registerStore(req, res) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // VENDOR AUTH — OTP Login (delegates to existing user OTP system)
-// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * POST /api/stores/login/send-otp
- * Send OTP to the vendor's registered email.
- * Vendor must already be registered (store registration creates the User).
- */
+
+
+ //  Send OTP to the vendor's registered email.
+
 export async function sendVendorLoginOtp(req, res) {
     const email = req.body?.email?.trim().toLowerCase();
     if (!email) {
@@ -142,10 +134,9 @@ export async function sendVendorLoginOtp(req, res) {
     }
 }
 
-/**
- * POST /api/stores/login/verify-otp
- * Verify OTP and issue JWT tokens for the vendor.
- */
+
+ //  POST /api/stores/login/verify-otp
+ 
 export async function verifyVendorLoginOtp(req, res) {
     const email = req.body?.email?.trim().toLowerCase();
     const otp = req.body?.otp?.toString().trim();
@@ -167,20 +158,15 @@ export async function verifyVendorLoginOtp(req, res) {
             return res.status(400).json({ success: false, message: 'Invalid OTP.' });
         }
 
-        // Clear OTP
         await User.findByIdAndUpdate(user._id, { loginOtp: null, loginOtpExpiry: null });
 
-        // Generate tokens using the existing utils
+        // Generate tokens using utils
         const { default: generatedAccessToken } = await import('../utils/generatedAccessToken.js');
         const { default: generatedRefreshToken } = await import('../utils/generatedRefreshToken.js');
 
         const accessToken = await generatedAccessToken(user._id);
         const refreshToken = await generatedRefreshToken(user._id);
 
-        // ── Vendor auth uses ONLY localStorage Bearer tokens, never cookies.
-        // Setting cookies here would contaminate the auth middleware,
-        // causing isBearerSession to return false and mixing up sessions.
-        // Tokens are returned in the response body for the frontend to store in localStorage.
 
         // Fetch store info
         const store = await Store.findOne({ owner: user._id }).lean();
@@ -296,10 +282,9 @@ export async function toggleStoreStatus(req, res) {
     }
 }
 
-/**
- * PUT /api/stores/me/logo
- * Upload store logo using ImageKit (reuses existing uploadImageClodinary utility).
- */
+
+ // Upload store logo using ImageKit
+
 export async function updateStoreLogo(req, res) {
     try {
         if (!req.file) {
@@ -311,7 +296,6 @@ export async function updateStoreLogo(req, res) {
             return res.status(404).json({ success: false, message: 'No store found for this account.' });
         }
 
-        // Upload to the store's dedicated logo folder in ImageKit
         const folder = `/divinekart/stores/${store._id}/logo`;
         const uploadResult = await uploadImageClodinary(req.file, folder);
         const logoUrl = uploadResult?.url || uploadResult?.secure_url;
@@ -324,7 +308,6 @@ export async function updateStoreLogo(req, res) {
             store._id,
             {
                 logo: logoUrl,
-                // Persist root folder on first upload
                 ...(store.imagekitFolder ? {} : { imagekitFolder: `/divinekart/stores/${store._id}` }),
             },
             { new: true }
@@ -337,24 +320,14 @@ export async function updateStoreLogo(req, res) {
     }
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC — Store Discovery
-// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * GET /api/stores/nearby?lat=&lng=&radius=&pincode=&city=
- * Find approved + active stores near a customer's location.
- * Strategy (in order): GPS coords → pincode → city name.
- * Gracefully handles stores whose coordinates are 0,0 (not set yet).
- */
 export async function getNearbyStores(req, res) {
     const { lng, lat, radius = 10, pincode, city, district } = req.query;
 
     const BASE_QUERY = { isApproved: true, isActive: true };
     const SELECT_FIELDS = 'name description logo address phone email openingHours serviceRadius pincodes location isActive';
 
-    // Helper: run the same strategy chain with a custom base query
     async function findByStrategies(baseQuery) {
         let stores = [];
 
@@ -529,10 +502,7 @@ export async function getStoreProducts(req, res) {
     }
 }
 
-/**
- * GET /api/stores/:storeId/orders  (vendor access)
- * Orders routed to the authenticated vendor's store.
- */
+ // Orders routed to the authenticated vendor's store.
 export async function getStoreOrders(req, res) {
     const { storeId } = req.params;
     const page = parseInt(req.query.page) || 1;
@@ -552,7 +522,7 @@ export async function getStoreOrders(req, res) {
 
         const [orders, total] = await Promise.all([
             Order.find(query)
-                .populate('user', 'name email phone')   // user is the ObjectId ref
+                .populate('user', 'name email phone')   
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
@@ -571,10 +541,9 @@ export async function getStoreOrders(req, res) {
     }
 }
 
-/**
- * GET /api/stores/:storeId/orders/:orderId  (vendor access)
- * Single order detail for the vendor's store.
- */
+
+ // Single order detail for the vendor's store.
+
 export async function getStoreOrderById(req, res) {
     const { storeId, orderId } = req.params;
     try {

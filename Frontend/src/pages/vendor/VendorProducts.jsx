@@ -1,6 +1,11 @@
 import {
-  getMyProducts, getMyProductById, createMyProduct, updateMyProduct, deleteMyProduct,
+  createMyProduct,
+  deleteMyProduct,
+  getMyProductById,
+  getMyProducts,
+  updateMyProduct,
 } from '@/services/storeService';
+import useVendorStore from '@/store/vendorStore';
 import { CATEGORIES } from '@/utils/constants';
 import { formatCurrency } from '@/utils/formatters';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,8 +15,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-
-// â”€â”€ Product Form (exact AdminProductForm design, inline not routed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ProductForm = ({ productId, onBack }) => {
   const qc = useQueryClient();
@@ -109,7 +112,7 @@ const ProductForm = ({ productId, onBack }) => {
   const mutation = useMutation({
     mutationFn: (fd) => isEditing ? updateMyProduct(productId, fd) : createMyProduct(fd),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['vendor-products'] });
+      qc.invalidateQueries({ queryKey: ['vendor-products'] });  // invalidates all vendor-products queries regardless of vendorId suffix
       toast.success(isEditing ? 'Product updated!' : 'Product created!');
       onBack();
     },
@@ -233,7 +236,7 @@ const ProductForm = ({ productId, onBack }) => {
             {errors.stock && <p className="mt-1 text-xs text-red-600">{errors.stock}</p>}
           </div>
 
-          {/* Image Upload (exact AdminProductForm drag-and-drop) */}
+          {/* Image Upload (exact VendorProductForm drag-and-drop) */}
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-2">Product Image *</label>
             {imagePreview ? (
@@ -295,17 +298,20 @@ const ProductForm = ({ productId, onBack }) => {
   );
 };
 
-// â”€â”€ Main Products Page (exact AdminProducts design) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const Products = () => {
   const qc = useQueryClient();
+  const vendor = useVendorStore((state) => state.vendor);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId]     = useState(null);  // productId being edited
   const [showForm, setShowForm]       = useState(false); // true = show ProductForm inline
 
   const { data, isLoading } = useQuery({
-    queryKey: ['vendor-products'],
+    queryKey: ['vendor-products', vendor?._id],
     queryFn:  () => getMyProducts({ limit: 100 }),
+    enabled: !!vendor,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const products         = data?.data ?? data?.products ?? [];
@@ -317,7 +323,7 @@ const Products = () => {
 
   const deleteMutation = useMutation({
     mutationFn: deleteMyProduct,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor-products'] }); toast.success('Product deleted.'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor-products', vendor?._id] }); toast.success('Product deleted.'); },
     onError: (err) => toast.error(err.response?.data?.message || 'Delete failed'),
   });
 
@@ -337,8 +343,6 @@ const Products = () => {
 
   return (
     <div className="p-10 bg-gray-50/30 min-h-screen">
-
-      {/* â”€â”€ Header (same as AdminProducts) â”€â”€ */}
       <div className="flex items-center justify-between mb-10">
         <div>
           <h1 className="text-3xl font-[900] text-gray-900 tracking-tight uppercase italic">Inventory</h1>
@@ -354,8 +358,6 @@ const Products = () => {
           <Plus className="w-4 h-4 stroke-[3px]" /> New Entry
         </button>
       </div>
-
-      {/* â”€â”€ Search Bar (same as AdminProducts) â”€â”€ */}
       <div className="mb-10">
         <div className="relative max-w-xl group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-amber-500 transition-colors" />
@@ -368,8 +370,6 @@ const Products = () => {
           />
         </div>
       </div>
-
-      {/* â”€â”€ Products Table (same as AdminProducts) â”€â”€ */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-20 text-center">

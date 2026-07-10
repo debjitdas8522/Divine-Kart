@@ -12,11 +12,9 @@ import User from '../models/userModel.js';
 import { resolveStoreForOrder } from '../services/routingService.js';
 import { newOrderNotificationTemplate } from '../utils/storeEmailTemplates.js';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: Notify store of a new order (fire-and-forget, never blocks checkout)
-// ─────────────────────────────────────────────────────────────────────────────
+
 async function notifyStoreOfNewOrder(order, store) {
-    if (!store || !store._id) return; // no store was assigned — skip silently
+    if (!store || !store._id) return; 
 
     const storeId = store._id;
     const message = `New order ${order.orderId} has been routed to your store. Total: ₹${(order.totalAmount || 0).toFixed(2)}.`;
