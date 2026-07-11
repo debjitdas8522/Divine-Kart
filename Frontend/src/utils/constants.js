@@ -66,10 +66,10 @@ export const CATEGORIES = [
     { id: 'agarbatti', name: 'Agarbatti & Dhoop', icon: '🕯️' },
     { id: 'murti', name: 'Idols & Murti', icon: '🕉️' },
     { id: 'diya', name: 'Diya & Oil', icon: '🪔' },
-    { id: 'samagri', name: 'Pujan Samagri', icon: '🥣' },
+    { id: 'samagri', name: 'Puja Samagri', icon: '🥣' },
     { id: 'flowers', name: 'Flowers & Garlands', icon: '🌸' },
     { id: 'books', name: 'Spiritual Books', icon: '📖' },
-    { id: 'vessels', name: 'Puja Vessels', icon: '🏺' },
+    { id: 'vessels', name: 'Puja Utensils', icon: '🏺' },
     { id: 'decor', name: 'Temple Decor', icon: '🏮' },
 ];
 
