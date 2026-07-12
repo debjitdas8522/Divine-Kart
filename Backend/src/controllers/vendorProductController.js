@@ -28,7 +28,7 @@ export const getMyProducts = async (req, res, next) => {
         const store = await getVendorStore(req.userId);
 
         const page  = Math.max(1, parseInt(req.query.page)  || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+        const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 20));
         const skip  = (page - 1) * limit;
 
         const [products, total] = await Promise.all([

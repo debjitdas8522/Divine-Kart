@@ -293,9 +293,9 @@ const Home = () => {
               <ProductRow title="Diya, Oil & Wicks" products={diya} isLoading={isLoading} viewAllRoute="/category/diya" />
             </section>
 
-            {/* Pujan Samagri Row */}
+            {/* Puja Samagri Row */}
             <section className="bg-white rounded-2xl p-1 md:p-4 shadow-sm border border-gray-100">
-              <ProductRow title="Pujan Samagri Essentials" products={samagri} isLoading={isLoading} viewAllRoute="/category/samagri" />
+              <ProductRow title="Puja Samagri Essentials" products={samagri} isLoading={isLoading} viewAllRoute="/category/samagri" />
             </section>
           </>
         ) : (

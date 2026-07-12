@@ -308,7 +308,7 @@ const Products = () => {
 
   const { data, isLoading } = useQuery({
     queryKey: ['vendor-products', vendor?._id],
-    queryFn:  () => getMyProducts({ limit: 100 }),
+    queryFn:  () => getMyProducts({ limit: 1000 }),
     enabled: !!vendor,
     staleTime: 0,
     gcTime: 0,
