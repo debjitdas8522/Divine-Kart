@@ -15,6 +15,7 @@ import { handleRazorpayWebhook } from './controllers/orderController.js'
 import authMiddleware from './middleware/auth.js'
 import addressRouter from './routes/addressRoutes.js'
 import adminStoreRouter from './routes/adminStoreRoutes.js'
+import adminUserRouter from './routes/adminUserRoutes.js'
 import aiRouter from './routes/aiRoutes.js'
 import cartRouter from './routes/cartRoutes.js'
 import categoryRouter from './routes/categoryRoutes.js'
@@ -153,6 +154,7 @@ app.use('/api/orders', orderRouter)
 app.use("/api/address", addressRouter)
 app.use("/api/stores", storeRouter)
 app.use('/api/admin/stores', adminStoreRouter)
+app.use('/api/admin/users', adminUserRouter)
 app.use('/api/ai', aiRouter)
 
 // Razorpay webhook endpoint (must use raw body for signature verification)

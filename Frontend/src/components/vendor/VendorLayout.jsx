@@ -1,20 +1,19 @@
+import { getMyNotifications, toggleMyStoreStatus } from '@/services/storeService';
 import useVendorStore from '@/store/vendorStore';
 import { VENDOR_ROUTES } from '@/utils/constants';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Bell,
   LayoutDashboard,
   LogOut,
-  Package,
   ShoppingBag,
   Store,
   Tag,
-  User,
+  User
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { getMyNotifications, toggleMyStoreStatus } from '@/services/storeService';
-import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: VENDOR_ROUTES.DASHBOARD },

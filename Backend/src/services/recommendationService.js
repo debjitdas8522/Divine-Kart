@@ -4,18 +4,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ─── Cache Helpers (no-op — Redis removed) ───────────────────────────────────
-// eslint-disable-next-line no-unused-vars
 const getCache = async (_key) => null;
-// eslint-disable-next-line no-unused-vars
 const setCache = async (_key, _value, _ttl) => {};
 
-// ─── AI-Powered Similar Products ─────────────────────────────────────────────
-
-/**
- * Get products similar to a given product using Gemini AI.
- * Falls back to category + price range if AI fails.
- */
 export const getSimilarProducts = async (productId, limit = 5) => {
   const cacheKey = `similar:${productId}`;
 
@@ -275,22 +266,26 @@ export const getPopularProducts = async (limit = 10) => {
 
     const ids = popularProductIds.map((item) => item._id).filter(Boolean);
 
-    // 3. Fallback: newest products if no orders exist
-    if (ids.length === 0) {
-      const newest = await Product.find()
-        .sort({ createdAt: -1 })
-        .limit(limit)
-        .lean();
-      await setCache(cacheKey, newest, 3600);
-      return newest;
+    // 3. Fallback: newest products if no orders exist or padding is needed
+    let result = [];
+    if (ids.length > 0) {
+      // 4. Fetch and reorder by popularity
+      const products = await Product.find({ _id: { $in: ids } }).lean();
+      result = ids
+        .filter((id) => id != null)
+        .map((id) => products.find((p) => p._id.toString() === id.toString()))
+        .filter(Boolean);
     }
 
-    // 4. Fetch and reorder by popularity
-    const products = await Product.find({ _id: { $in: ids } }).lean();
-    const result = ids
-      .filter((id) => id != null)
-      .map((id) => products.find((p) => p._id.toString() === id.toString()))
-      .filter(Boolean);
+    if (result.length < limit) {
+      const existingIds = result.map((p) => p._id);
+      const paddingLimit = limit - result.length;
+      const newest = await Product.find({ _id: { $nin: existingIds } })
+        .sort({ createdAt: -1 })
+        .limit(paddingLimit)
+        .lean();
+      result = [...result, ...newest];
+    }
 
     // 5. Cache for 1 hour
     await setCache(cacheKey, result, 3600);

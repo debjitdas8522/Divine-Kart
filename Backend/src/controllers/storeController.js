@@ -1,14 +1,14 @@
 import mongoose from 'mongoose';
-import sendEmail from '../config/sendmail.js';
+import { default as sendEmail, default as sendLoginOtpEmail } from '../config/sendmail.js';
 import Order from '../models/orderModel.js';
 import { Product } from '../models/productModel.js';
 import Store from '../models/storeModel.js';
 import User from '../models/userModel.js';
-import uploadImageClodinary from '../utils/uploadImageClodinary.js';
-import { storeApprovedTemplate, storeRejectedTemplate } from '../utils/storeEmailTemplates.js';
 import generatedOtp from '../utils/generatedOtp.js';
-import sendLoginOtpEmail from '../config/sendmail.js';
+import geocodeAddress from '../utils/geocodeAddress.js';
 import loginOtpTemplate from '../utils/loginOtpTemplate.js';
+import { storeApprovedTemplate, storeRejectedTemplate } from '../utils/storeEmailTemplates.js';
+import uploadImageClodinary from '../utils/uploadImageClodinary.js';
 
 
 // PUBLIC — Store Registration
@@ -69,6 +69,17 @@ export async function registerStore(req, res) {
                 type: 'Point',
                 coordinates: [parseFloat(lng), parseFloat(lat)]
             };
+        } else if (street || city || state || pincode) {
+            // Auto-geocode from address fields
+            const geo = await geocodeAddress({ street, city, state, pincode });
+            if (geo) {
+                storeData.location = {
+                    type: 'Point',
+                    coordinates: [geo.lng, geo.lat]
+                };
+            } else {
+                storeData.location = { type: 'Point', coordinates: [0, 0] };
+            }
         } else {
             // Default coordinates (required by schema) — admin must update
             storeData.location = { type: 'Point', coordinates: [0, 0] };
@@ -236,6 +247,21 @@ export async function updateMyStore(req, res) {
                 type: 'Point',
                 coordinates: [parseFloat(req.body.lng), parseFloat(req.body.lat)]
             };
+        } else if (updates.address) {
+            // Auto-geocode from the updated address fields
+            const addr = updates.address;
+            const geo = await geocodeAddress({
+                street: addr.street,
+                city: addr.city,
+                state: addr.state,
+                pincode: addr.pincode,
+            });
+            if (geo) {
+                updates.location = {
+                    type: 'Point',
+                    coordinates: [geo.lng, geo.lat]
+                };
+            }
         }
 
         const updated = await Store.findByIdAndUpdate(

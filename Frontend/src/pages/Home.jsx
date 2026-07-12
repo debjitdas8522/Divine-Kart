@@ -1,13 +1,14 @@
 import CategoryGrid from '@/components/product/CategoryGrid';
+import ProductCard from '@/components/product/ProductCard';
 import ProductRow from '@/components/product/ProductRow';
+import { useAuth } from '@/hooks/useAuth';
+import { getPersonalizedRecommendations, getPopularProducts } from '@/services/aiService';
 import { getProductsByStoreIds } from '@/services/productService';
 import { getNearbyStores } from '@/services/storeService';
-import { getPersonalizedRecommendations, getPopularProducts } from '@/services/aiService';
 import useLocationStore from '@/store/locationStore';
 import useUIStore from '@/store/uiStore';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/hooks/useAuth';
-import { Clock, MapPin, Navigation, PackageX, Sparkles, Store, TrendingUp } from 'lucide-react';
+import { ChevronRight, Clock, Gift, MapPin, Navigation, PackageX, ShoppingBag, Sparkles, Store, TrendingUp, Zap } from 'lucide-react';
 
 // ─── No-Location Banner ──────────────────────────────────────────────────────
 const NoLocationBanner = ({ onOpenLocation }) => (
@@ -66,6 +67,138 @@ const NoStoresBanner = ({ location, onOpenLocation }) => (
     </div>
   </div>
 );
+
+// ─── Hero Section (replaces banners) ─────────────────────────────────────────
+const HeroSection = ({ location, onOpenLocation, storeCount }) => {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+
+  return (
+    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-700 via-primary to-primary-600 text-white shadow-lg">
+      {/* Decorative shapes */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+      <div className="absolute top-1/2 right-12 w-20 h-20 bg-white/5 rounded-full hidden md:block" />
+
+      <div className="relative px-5 py-6 md:px-8 md:py-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+          {/* Left: Greeting & info */}
+          <div className="space-y-3">
+            <p className="text-white/70 text-xs font-bold uppercase tracking-[0.2em]">{greeting} 🙏</p>
+            <h1 className="text-2xl md:text-3xl font-black leading-tight">
+              Divine Puja Essentials,<br />
+              <span className="text-amber-300">Delivered to Your Door</span>
+            </h1>
+            {location ? (
+              <button
+                onClick={onOpenLocation}
+                className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm px-4 py-2 rounded-xl transition-all text-sm font-semibold group"
+              >
+                <MapPin className="w-4 h-4 text-amber-300" />
+                <span className="truncate max-w-[200px]">{location.label}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-white/50 group-hover:text-white transition-colors" />
+              </button>
+            ) : (
+              <button
+                onClick={onOpenLocation}
+                className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-gray-900 px-5 py-2.5 rounded-xl transition-all text-sm font-bold shadow-md"
+              >
+                <Navigation className="w-4 h-4" />
+                Set Your Location
+              </button>
+            )}
+          </div>
+
+          {/* Right: Quick stats pills */}
+          <div className="flex flex-row md:flex-col gap-2.5">
+            <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 flex-1 md:flex-none">
+              <div className="w-9 h-9 rounded-lg bg-amber-400/20 flex items-center justify-center flex-shrink-0">
+                <Zap className="w-5 h-5 text-amber-300" />
+              </div>
+              <div>
+                <p className="text-[11px] text-white/60 font-bold uppercase tracking-wider">Express</p>
+                <p className="text-sm font-black leading-tight">10 Min Delivery</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 flex-1 md:flex-none">
+              <div className="w-9 h-9 rounded-lg bg-emerald-400/20 flex items-center justify-center flex-shrink-0">
+                <Store className="w-5 h-5 text-emerald-300" />
+              </div>
+              <div>
+                <p className="text-[11px] text-white/60 font-bold uppercase tracking-wider">Stores</p>
+                <p className="text-sm font-black leading-tight">{storeCount > 0 ? `${storeCount} Nearby` : 'Set Location'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ─── Offer Chips (replaces banners) ──────────────────────────────────────────
+const OfferChips = () => (
+  <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+    {[
+      { icon: <Gift className="w-4 h-4" />, text: 'Free Delivery over ₹500', bg: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+      { icon: <Zap className="w-4 h-4" />, text: 'Fresh Flowers Daily', bg: 'bg-pink-50 border-pink-200 text-pink-700' },
+      { icon: <ShoppingBag className="w-4 h-4" />, text: '100% Authentic Products', bg: 'bg-amber-50 border-amber-200 text-amber-700' },
+    ].map((chip, i) => (
+      <div
+        key={i}
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold whitespace-nowrap flex-shrink-0 ${chip.bg}`}
+      >
+        {chip.icon}
+        {chip.text}
+      </div>
+    ))}
+
+    <style>{`
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    `}</style>
+  </div>
+);
+
+
+// ─── All Products Grid ───────────────────────────────────────────────────────
+const AllProductsGrid = ({ products, isLoading }) => {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+        {[...Array(10)].map((_, i) => (
+          <div key={i} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="aspect-square skeleton" />
+            <div className="p-3 space-y-2">
+              <div className="h-3 skeleton rounded w-full" />
+              <div className="h-3 skeleton rounded w-2/3" />
+              <div className="h-5 skeleton rounded w-1/2" />
+              <div className="h-8 skeleton rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (!products || products.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <ShoppingBag className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+        <p className="text-sm text-gray-400 font-semibold">No products available right now</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+      {products.map((product) => (
+        <ProductCard key={product._id} product={product} />
+      ))}
+    </div>
+  );
+};
+
 
 // ─── Nearby Stores Status Card ──────────────────────────────────────────────
 const NearbyStoresStatus = ({ stores, location }) => {
@@ -226,7 +359,7 @@ const Home = () => {
 
   const { data: recommendedData, isLoading: recsLoading } = useQuery({
     queryKey: ['recommendations', isLoggedIn ? 'personalized' : 'popular'],
-    queryFn: () => isLoggedIn ? getPersonalizedRecommendations(10) : getPopularProducts(10),
+    queryFn: () => isLoggedIn ? getPersonalizedRecommendations(20) : getPopularProducts(20),
     staleTime: 5 * 60 * 1000,
     enabled: hasOnlineStores,
   });
@@ -263,11 +396,10 @@ const Home = () => {
     // Stores found — show vendor status + products
     return (
       <>
-
         {/* Product sections — only if online stores exist */}
         {hasOnlineStores ? (
           <>
-            {/* AI Recommendations Row */}
+            {/* AI Recommendations Slider */}
             {(recsLoading || recommendedProducts.length > 0) && (
               <section className="bg-white rounded-2xl p-1 md:p-4 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-2 px-3 pt-2 pb-1 md:px-0 md:pt-0">
@@ -297,6 +429,24 @@ const Home = () => {
             <section className="bg-white rounded-2xl p-1 md:p-4 shadow-sm border border-gray-100">
               <ProductRow title="Puja Samagri Essentials" products={samagri} isLoading={isLoading} viewAllRoute="/category/samagri" />
             </section>
+
+            {/* All Products — full grid */}
+            <section className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center">
+                    <ShoppingBag className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-[900] text-gray-900 uppercase tracking-widest">All Products</h2>
+                    <p className="text-[10px] text-gray-400 font-bold">
+                      {products.length} items available near you
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <AllProductsGrid products={products} isLoading={isLoading} />
+            </section>
           </>
         ) : (
           <div className="mx-4 md:mx-0 my-4 rounded-2xl overflow-hidden border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 shadow-sm">
@@ -319,23 +469,17 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20 md:pt-4">
-      {/* Promotional Banners */}
-      <section className="container-custom py-2 md:py-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="aspect-[21/9] md:aspect-[16/7] rounded-2xl overflow-hidden bg-primary-100 relative group">
-             <img src="/puja_banner.png" alt="Divine Puja Essentials" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-             <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
-          </div>
-          <div className="hidden md:block aspect-[16/7] rounded-2xl overflow-hidden bg-accent-yellow/20 relative group">
-             <img src="https://img.freepik.com/free-vector/food-delivery-courier-service-banner-flat-design_23-2148590675.jpg" alt="Promo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-          </div>
-          <div className="hidden lg:block aspect-[16/7] rounded-2xl overflow-hidden bg-accent-red/10 relative group">
-             <img src="https://img.freepik.com/free-vector/supermarket-banner-template_23-2148501251.jpg" alt="Promo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-          </div>
-        </div>
-      </section>
+      <div className="container-custom space-y-3 md:space-y-4 pb-12">
+        {/* Hero Section — replaces banners */}
+        <HeroSection
+          location={location}
+          onOpenLocation={openLocationModal}
+          storeCount={onlineStores.length}
+        />
 
-      <div className="container-custom space-y-2 md:space-y-4 pb-12">
+        {/* Offer Chips */}
+        <OfferChips />
+
         {/* Horizontal Category Grid */}
         <section className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100">
           <CategoryGrid />
