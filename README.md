@@ -2,6 +2,39 @@
 
 A full-stack spiritual e-commerce platform built for the modern web. Divine-Kart lets users browse, discover, and purchase authentic puja items — agarbatti, idols, diyas, samagri, spiritual books, and more — with a seamless 10-minute delivery promise.
 
+## 📸 Project Screenshots
+
+<table>
+<tr>
+<td align="center"><b>Customer Home Page</b></td>
+<td align="center"><b>Vendor Dashboard</b></td>
+</tr>
+
+<tr>
+<td>
+<img src="screenshots/home-page.png" width="100%">
+</td>
+<td>
+<img src="screenshots/vendor-dashboard.png" width="100%">
+</td>
+</tr>
+
+<tr>
+<td align="center"><b>Order History</b></td>
+<td align="center"><b>Product Management</b></td>
+</tr>
+
+<tr>
+<td>
+<img src="screenshots/order-history.png" width="100%">
+</td>
+<td>
+<img src="screenshots/product-management.png" width="100%">
+</td>
+</tr>
+
+</table>
+
 ## 📦 Project Structure
 
 ```
@@ -129,4 +162,6 @@ Licensed under the **ISC License**.
 
 ---
 
-**Author**: Chiranjit Das
+## 👨‍💻 Contributors 
+- Debjit Das — https://github.com/debjitdas8522
+- Chiranjit Das — https://github.com/heychirru
